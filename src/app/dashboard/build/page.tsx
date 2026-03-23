@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -11,6 +11,9 @@ import {
   Globe,
   ExternalLink,
   CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -36,16 +39,6 @@ const GENERATION_STEPS = [
   { name: "准备发布", description: "最终检查并部署到全球 CDN" },
 ];
 
-/* Timings: when each step becomes "active" and when it becomes "done" (ms) */
-const STEP_TIMINGS: { active: number; done: number }[] = [
-  { active: 0, done: 0 },
-  { active: 0, done: 1000 },
-  { active: 1000, done: 2000 },
-  { active: 2000, done: 4500 },
-  { active: 3000, done: 6000 },
-  { active: 4500, done: 7000 },
-];
-
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -58,6 +51,21 @@ interface FormData {
   sellingPoints: string;
   email: string;
   whatsapp: string;
+}
+
+interface SiteData {
+  hero: { tagline: string; headline: string; subheadline: string; cta_primary: string; cta_secondary: string };
+  products: { name: string; description: string; specs: { label: string; value: string }[] }[];
+  why_us: { title: string; description: string; stat: string }[];
+  faq: { question: string; answer: string }[];
+  seo: { title: string; description: string; keywords: string[] };
+  about: { headline: string; paragraphs: string[]; certifications: string[] };
+}
+
+interface GenerationResult {
+  siteData: SiteData;
+  siteId: string | null;
+  subdomain: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -307,39 +315,125 @@ function StepForm({
 /*  Step 2 – Generation Progress                                       */
 /* ------------------------------------------------------------------ */
 
-function StepGeneration({ onComplete }: { onComplete: () => void }) {
-  // Track which steps are done
+function StepGeneration({
+  form,
+  onComplete,
+}: {
+  form: FormData;
+  onComplete: (result: GenerationResult) => void;
+}) {
   const [doneSet, setDoneSet] = useState<Set<number>>(new Set());
   const [activeIdx, setActiveIdx] = useState(0);
   const [allDone, setAllDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<GenerationResult | null>(null);
+
+  const fetchStarted = useRef(false);
+  const apiDone = useRef(false);
+  const resultRef = useRef<GenerationResult | null>(null);
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (fetchStarted.current) return;
+    fetchStarted.current = true;
 
-    STEP_TIMINGS.forEach((t, i) => {
-      // activate
-      timers.push(
-        setTimeout(() => setActiveIdx((prev) => Math.max(prev, i)), t.active),
-      );
-      // mark done
-      timers.push(
-        setTimeout(
-          () =>
-            setDoneSet((prev) => {
-              const next = new Set(prev);
-              next.add(i);
-              return next;
-            }),
-          t.done,
-        ),
-      );
-    });
+    // Start the API call
+    const fetchPromise = fetch("/api/generate-site", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: GenerationResult) => {
+        apiDone.current = true;
+        resultRef.current = data;
+        // Mark ALL steps as done immediately
+        setDoneSet(new Set(GENERATION_STEPS.map((_, i) => i)));
+        setActiveIdx(GENERATION_STEPS.length - 1);
+        setResult(data);
+        setAllDone(true);
+      })
+      .catch((err) => {
+        apiDone.current = true;
+        setError(err instanceof Error ? err.message : "生成失败，请重试");
+      });
 
-    // all done
-    timers.push(setTimeout(() => setAllDone(true), 7200));
+    // Animate through steps while waiting for API
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      if (apiDone.current) {
+        clearInterval(interval);
+        return;
+      }
 
-    return () => timers.forEach(clearTimeout);
-  }, []);
+      // Each step is active for ~2s then marked done, advance to next
+      setDoneSet((prev) => {
+        const next = new Set(prev);
+        if (currentStep > 0) {
+          next.add(currentStep - 1);
+        }
+        return next;
+      });
+
+      if (currentStep < GENERATION_STEPS.length - 1) {
+        setActiveIdx(currentStep);
+        currentStep++;
+      }
+    }, 2000);
+
+    // Cleanup reference for fetchPromise to avoid unhandled rejection warnings
+    void fetchPromise;
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [form]);
+
+  const handleRetry = () => {
+    fetchStarted.current = false;
+    apiDone.current = false;
+    resultRef.current = null;
+    setDoneSet(new Set());
+    setActiveIdx(0);
+    setAllDone(false);
+    setError(null);
+    setResult(null);
+    // Re-trigger by forcing a re-render; the effect will run again since fetchStarted is reset
+    // We need a state change to trigger re-render
+    setActiveIdx(0);
+    // Manually re-run the fetch
+    fetchStarted.current = true;
+
+    fetch("/api/generate-site", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: GenerationResult) => {
+        apiDone.current = true;
+        resultRef.current = data;
+        setDoneSet(new Set(GENERATION_STEPS.map((_, i) => i)));
+        setActiveIdx(GENERATION_STEPS.length - 1);
+        setResult(data);
+        setAllDone(true);
+      })
+      .catch((err) => {
+        apiDone.current = true;
+        setError(err instanceof Error ? err.message : "生成失败，请重试");
+      });
+  };
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -398,8 +492,26 @@ function StepGeneration({ onComplete }: { onComplete: () => void }) {
         })}
       </div>
 
+      {/* Error state */}
+      {error && (
+        <div className="mt-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-7 w-7 text-red-600" />
+          </div>
+          <p className="text-lg font-semibold text-gray-900">生成失败</p>
+          <p className="mt-1 text-sm text-gray-500">{error}</p>
+          <button
+            onClick={handleRetry}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+          >
+            重试
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Completion state */}
-      {allDone && (
+      {allDone && result && (
         <div className="mt-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
             <CheckCircle2 className="h-7 w-7 text-emerald-600" />
@@ -409,7 +521,7 @@ function StepGeneration({ onComplete }: { onComplete: () => void }) {
             你的外贸独立站已准备就绪，点击预览查看效果
           </p>
           <button
-            onClick={onComplete}
+            onClick={() => onComplete(result)}
             className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
           >
             预览站点
@@ -427,18 +539,19 @@ function StepGeneration({ onComplete }: { onComplete: () => void }) {
 
 function StepPreview({
   form,
+  result,
   onBack,
 }: {
   form: FormData;
+  result: GenerationResult;
   onBack: () => void;
 }) {
   const [published, setPublished] = useState(false);
-  const slug =
-    form.companyEnName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "your-company";
-  const siteUrl = `${slug}.tradex.com`;
+  const [publishing, setPublishing] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const { siteData, subdomain, siteId } = result;
+  const siteUrl = `${subdomain}.tradex.com`;
 
   if (published) {
     return (
@@ -464,15 +577,13 @@ function StepPreview({
           </div>
 
           <div className="mt-8 flex gap-3">
-            <a
-              href={`https://${siteUrl}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={`/site/${subdomain}`}
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
             >
               访问站点
               <ExternalLink className="h-4 w-4" />
-            </a>
+            </Link>
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
@@ -484,9 +595,6 @@ function StepPreview({
       </div>
     );
   }
-
-  const displayProducts =
-    form.products.length > 0 ? form.products : ["伺服液压注塑机", "全电动注塑机"];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -517,21 +625,20 @@ function StepPreview({
           {/* Hero */}
           <div className="bg-gradient-to-br from-indigo-600 to-violet-600 px-8 py-16 text-center text-white">
             <p className="mb-2 text-xs font-medium uppercase tracking-widest text-indigo-200">
-              Professional Injection Molding Solutions
+              {siteData.hero.tagline}
             </p>
             <h3 className="text-3xl font-bold">
-              {form.companyEnName || "Your Company Name"}
+              {siteData.hero.headline}
             </h3>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-indigo-100">
-              {form.sellingPoints ||
-                "Providing high-quality injection molding machines to customers worldwide with 20+ years of experience."}
+              {siteData.hero.subheadline}
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <span className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-indigo-600">
-                Request a Quote
+                {siteData.hero.cta_primary}
               </span>
               <span className="rounded-lg border border-white/30 px-5 py-2.5 text-sm font-semibold text-white">
-                View Products
+                {siteData.hero.cta_secondary}
               </span>
             </div>
           </div>
@@ -544,16 +651,37 @@ function StepPreview({
             <p className="mb-6 text-center text-xs text-gray-500">
               Industry-leading injection molding machines
             </p>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {displayProducts.map((p) => (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {siteData.products.map((product) => (
                 <div
-                  key={p}
-                  className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-center"
+                  key={product.name}
+                  className="rounded-lg border border-gray-100 bg-gray-50 p-4"
                 >
                   <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-indigo-100">
                     <Globe className="h-7 w-7 text-indigo-500" />
                   </div>
-                  <p className="text-sm font-medium text-gray-800">{p}</p>
+                  <p className="text-center text-sm font-medium text-gray-800">
+                    {product.name}
+                  </p>
+                  <p className="mt-1 text-center text-xs text-gray-500">
+                    {product.description}
+                  </p>
+                  {product.specs.length > 0 && (
+                    <table className="mt-3 w-full text-xs">
+                      <tbody>
+                        {product.specs.map((spec) => (
+                          <tr key={spec.label} className="border-t border-gray-100">
+                            <td className="py-1 pr-2 font-medium text-gray-600">
+                              {spec.label}
+                            </td>
+                            <td className="py-1 text-right text-gray-500">
+                              {spec.value}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               ))}
             </div>
@@ -565,24 +693,82 @@ function StepPreview({
               Why Choose Us
             </h4>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[
-                { title: "20+ Years", desc: "行业经验" },
-                { title: "ISO 9001", desc: "质量认证" },
-                { title: "50+ Countries", desc: "全球客户" },
-                { title: "24/7 Support", desc: "售后服务" },
-              ].map((item) => (
+              {siteData.why_us.map((item) => (
                 <div key={item.title} className="text-center">
                   <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
                     <Check className="h-5 w-5 text-indigo-600" />
                   </div>
+                  <p className="text-lg font-bold text-indigo-600">
+                    {item.stat}
+                  </p>
                   <p className="text-sm font-semibold text-gray-900">
                     {item.title}
                   </p>
-                  <p className="text-xs text-gray-500">{item.desc}</p>
+                  <p className="text-xs text-gray-500">{item.description}</p>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* About */}
+          <div className="px-8 py-10">
+            <h4 className="mb-4 text-center text-lg font-bold text-gray-900">
+              {siteData.about.headline}
+            </h4>
+            <div className="mx-auto max-w-2xl space-y-3">
+              {siteData.about.paragraphs.map((p, i) => (
+                <p key={i} className="text-sm leading-relaxed text-gray-600">
+                  {p}
+                </p>
+              ))}
+            </div>
+            {siteData.about.certifications.length > 0 && (
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                {siteData.about.certifications.map((cert) => (
+                  <span
+                    key={cert}
+                    className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700"
+                  >
+                    {cert}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* FAQ */}
+          {siteData.faq.length > 0 && (
+            <div className="px-8 py-10">
+              <h4 className="mb-6 text-center text-lg font-bold text-gray-900">
+                Frequently Asked Questions
+              </h4>
+              <div className="mx-auto max-w-2xl space-y-2">
+                {siteData.faq.map((item, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-gray-100"
+                  >
+                    <button
+                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50"
+                    >
+                      <span>{item.question}</span>
+                      {openFaq === i ? (
+                        <ChevronUp className="h-4 w-4 shrink-0 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                      )}
+                    </button>
+                    {openFaq === i && (
+                      <div className="border-t border-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-600">
+                        {item.answer}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* RFQ form preview */}
           <div className="px-8 py-10">
@@ -636,11 +822,34 @@ function StepPreview({
           返回编辑
         </button>
         <button
-          onClick={() => setPublished(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+          disabled={publishing}
+          onClick={async () => {
+            if (siteId) {
+              setPublishing(true);
+              try {
+                await fetch("/api/sites/publish", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ siteId }),
+                });
+              } catch {}
+              setPublishing(false);
+            }
+            setPublished(true);
+          }}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
         >
-          发布站点
-          <ArrowRight className="h-4 w-4" />
+          {publishing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              发布中...
+            </>
+          ) : (
+            <>
+              发布站点
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -662,6 +871,7 @@ export default function BuildPage() {
     email: "",
     whatsapp: "",
   });
+  const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
 
   const goToStep = useCallback((s: number) => {
     setStep(s);
@@ -676,9 +886,19 @@ export default function BuildPage() {
         <StepForm form={form} setForm={setForm} onNext={() => goToStep(2)} />
       )}
 
-      {step === 2 && <StepGeneration onComplete={() => goToStep(3)} />}
+      {step === 2 && (
+        <StepGeneration
+          form={form}
+          onComplete={(result) => {
+            setGenerationResult(result);
+            goToStep(3);
+          }}
+        />
+      )}
 
-      {step === 3 && <StepPreview form={form} onBack={() => goToStep(1)} />}
+      {step === 3 && generationResult && (
+        <StepPreview form={form} result={generationResult} onBack={() => goToStep(1)} />
+      )}
     </div>
   );
 }
