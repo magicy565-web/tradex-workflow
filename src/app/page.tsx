@@ -59,7 +59,7 @@ export default function Home() {
             TradeX
           </Link>
           <Link
-            href="/dashboard/build"
+            href="/auth/register"
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
           >
             开始建站
@@ -80,7 +80,7 @@ export default function Home() {
           </p>
           <div className="mt-10">
             <Link
-              href="/dashboard/build"
+              href="/auth/register"
               className="inline-block rounded-lg bg-indigo-600 px-8 py-3 text-base font-medium text-white transition-colors hover:bg-indigo-700"
             >
               免费试用 7 天 &rarr;
@@ -251,7 +251,7 @@ export default function Home() {
                   ))}
                 </ul>
                 <Link
-                  href="/dashboard/build"
+                  href="/auth/register"
                   className={`mt-8 block rounded-lg py-2.5 text-center text-sm font-medium transition-colors ${
                     plan.highlighted
                       ? "bg-indigo-600 text-white hover:bg-indigo-700"

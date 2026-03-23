@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { UserProvider, useUser } from "@/lib/user-context";
 import {
   LayoutDashboard,
   Wand2,
@@ -14,6 +15,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
+  Loader2,
 } from "lucide-react";
 
 const navSections = [
@@ -68,13 +71,16 @@ const pageTitles: Record<string, string> = {
   "/dashboard/settings": "系统设置",
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const planLabels: Record<string, string> = {
+  trial: "试用版",
+  pro: "Pro 专业版",
+  enterprise: "企业版",
+};
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, profile, loading, signOut } = useUser();
 
   const sidebarWidth = collapsed ? "w-16" : "w-60";
   const pageTitle = pageTitles[pathname] ?? "工作台";
@@ -83,6 +89,23 @@ export default function DashboardLayout({
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
+
+  const displayName =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "用户";
+  const nameInitial = displayName.charAt(0).toUpperCase();
+  const credits = profile?.credits ?? 0;
+  const plan = profile?.plan ?? "trial";
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50/60">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/60">
@@ -167,15 +190,26 @@ export default function DashboardLayout({
         <div className="border-t border-black/[0.06] px-3 py-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-400 text-xs font-bold text-white">
-              张
+              {nameInitial}
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">
-                  张明远
+                  {displayName}
                 </p>
-                <p className="text-[11px] text-indigo-500">Pro 专业版</p>
+                <p className="text-[11px] text-indigo-500">
+                  {planLabels[plan] || plan}
+                </p>
               </div>
+            )}
+            {!collapsed && (
+              <button
+                onClick={signOut}
+                className="rounded-md p-1 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-colors"
+                title="退出登录"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
@@ -192,7 +226,7 @@ export default function DashboardLayout({
           </h1>
           <div className="flex items-center gap-3">
             <span className="rounded-full border border-black/[0.06] px-3 py-1 text-xs font-medium text-gray-600">
-              7,842 积分
+              {credits.toLocaleString()} 积分
             </span>
           </div>
         </header>
@@ -201,5 +235,17 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <UserProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </UserProvider>
   );
 }
