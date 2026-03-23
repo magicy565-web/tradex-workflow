@@ -1,11 +1,16 @@
-import Link from "next/link";
+"use client";
 
-const kpis = [
-  { label: "在线站点", value: "2", color: "text-indigo-600" },
-  { label: "本周询盘", value: "8", color: "text-emerald-600" },
-  { label: "成交线索", value: "3", color: "text-amber-600" },
-  { label: "剩余积分", value: "7,842", color: "text-violet-600" },
-];
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useUser } from "@/lib/user-context";
+import { createClient } from "@/lib/supabase/client";
+
+interface KpiData {
+  publishedSites: number;
+  weeklyInquiries: number;
+  closedLeads: number;
+  credits: number;
+}
 
 const quickActions = [
   {
@@ -29,31 +34,131 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const { user, profile, loading: userLoading } = useUser();
+  const [kpiData, setKpiData] = useState<KpiData | null>(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    async function fetchKpis() {
+      const supabase = createClient();
+
+      // Fetch published site count
+      const { count: publishedSites } = await supabase
+        .from("sites")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user!.id)
+        .eq("status", "published");
+
+      // Fetch user's site IDs for inquiry lookup
+      const { data: userSites } = await supabase
+        .from("sites")
+        .select("id")
+        .eq("user_id", user!.id);
+
+      const siteIds = userSites?.map((s) => s.id) ?? [];
+
+      // Fetch inquiries from the last 7 days
+      let weeklyInquiries = 0;
+      if (siteIds.length > 0) {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const { count } = await supabase
+          .from("inquiries")
+          .select("*", { count: "exact", head: true })
+          .in("site_id", siteIds)
+          .gte("created_at", sevenDaysAgo.toISOString());
+
+        weeklyInquiries = count ?? 0;
+      }
+
+      setKpiData({
+        publishedSites: publishedSites ?? 0,
+        weeklyInquiries,
+        closedLeads: 0,
+        credits: profile?.credits ?? 0,
+      });
+      setKpiLoading(false);
+    }
+
+    fetchKpis();
+  }, [user, profile?.credits]);
+
+  const loading = userLoading || kpiLoading;
+
+  const kpis = [
+    {
+      label: "在线站点",
+      value: kpiData?.publishedSites ?? 0,
+      color: "text-indigo-600",
+    },
+    {
+      label: "本周询盘",
+      value: kpiData?.weeklyInquiries ?? 0,
+      color: "text-emerald-600",
+    },
+    {
+      label: "成交线索",
+      value: kpiData?.closedLeads ?? 0,
+      color: "text-amber-600",
+    },
+    {
+      label: "剩余积分",
+      value: kpiData?.credits?.toLocaleString() ?? "0",
+      color: "text-violet-600",
+    },
+  ];
+
+  const displayName = profile?.full_name || "用户";
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       {/* Welcome */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-          欢迎回来，张明远
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          以下是您的业务概览
-        </p>
+        {loading ? (
+          <div className="space-y-2">
+            <div className="h-8 w-48 animate-pulse rounded-md bg-gray-200" />
+            <div className="h-4 w-32 animate-pulse rounded-md bg-gray-200" />
+          </div>
+        ) : (
+          <>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+              欢迎回来，{displayName}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              以下是您的业务概览
+            </p>
+          </>
+        )}
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-xl border border-black/[0.06] bg-white p-6"
-          >
-            <p className="text-xs font-medium text-gray-500">{kpi.label}</p>
-            <p className={`mt-2 text-2xl font-bold ${kpi.color}`}>
-              {kpi.value}
-            </p>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-black/[0.06] bg-white p-6"
+              >
+                <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+                <div className="mt-4 h-7 w-12 animate-pulse rounded bg-gray-200" />
+              </div>
+            ))
+          : kpis.map((kpi) => (
+              <div
+                key={kpi.label}
+                className="rounded-xl border border-black/[0.06] bg-white p-6"
+              >
+                <p className="text-xs font-medium text-gray-500">
+                  {kpi.label}
+                </p>
+                <p className={`mt-2 text-2xl font-bold ${kpi.color}`}>
+                  {kpi.value}
+                </p>
+              </div>
+            ))}
       </div>
 
       {/* Quick Actions */}

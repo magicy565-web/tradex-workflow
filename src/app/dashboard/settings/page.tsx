@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   CreditCard,
@@ -10,68 +10,124 @@ import {
   RefreshCw,
   Check,
   ArrowUpRight,
+  Loader2,
 } from "lucide-react";
+import { useUser } from "@/lib/user-context";
+import { createClient } from "@/lib/supabase/client";
 
-/* ------------------------------------------------------------------ */
-/*  Mock data                                                         */
-/* ------------------------------------------------------------------ */
-
-const initialProfile = {
-  name: "张明远",
-  email: "mingyuan@tradex.com",
-  phone: "138-0013-8000",
-  company: "深圳明远贸易有限公司",
-  companyEn: "Shenzhen Mingyuan Trading Co., Ltd.",
-};
-
-const plan = {
-  name: "Pro 专业版",
-  price: "¥799/月",
-  renewalDate: "2026-04-23",
-};
-
-const credits = {
-  used: 2158,
-  total: 10000,
-};
-
-const creditHistory = [
-  { date: "2026-03-22", action: "AI 内容生成", amount: -30 },
-  { date: "2026-03-20", action: "询盘智能回复", amount: -12 },
-  { date: "2026-03-18", action: "月度积分发放", amount: +5000 },
-  { date: "2026-03-15", action: "站点 SEO 优化", amount: -80 },
-  { date: "2026-03-12", action: "线索评分分析", amount: -20 },
-];
-
-const MOCK_API_KEY = "sk-tradex-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6";
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
-
-function maskKey(key: string) {
-  return key.slice(0, 10) + "••••••••••••••••" + key.slice(-4);
+interface CreditTransaction {
+  id: string;
+  action: string;
+  description: string | null;
+  amount: number;
+  created_at: string;
 }
+
+const planLabels: Record<string, string> = {
+  trial: "试用版",
+  pro: "Pro 专业版",
+  enterprise: "企业版",
+};
+
+const planCredits: Record<string, number> = {
+  trial: 1000,
+  pro: 10000,
+  enterprise: 50000,
+};
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                              */
 /* ------------------------------------------------------------------ */
 
 export default function SettingsPage() {
-  const [profile, setProfile] = useState(initialProfile);
+  const { user, profile: userProfile, loading: userLoading, refreshProfile } = useUser();
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    companyEn: "",
+  });
+  const [formLoaded, setFormLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
   const [copied, setCopied] = useState(false);
-  const [keyRevealed] = useState(false);
+  const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
 
-  const creditsPercent = Math.round((credits.used / credits.total) * 100);
+  // Load profile data into form
+  useEffect(() => {
+    if (!user || formLoaded) return;
+    setFormData({
+      name: userProfile?.full_name || user.user_metadata?.full_name || "",
+      email: user.email || "",
+      phone: "",
+      company: userProfile?.company_name || "",
+      companyEn: "",
+    });
+    setFormLoaded(true);
+  }, [user, userProfile, formLoaded]);
+
+  // Fetch credit history
+  useEffect(() => {
+    if (!user) return;
+    async function fetchHistory() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("credit_transactions")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (data) setCreditHistory(data);
+    }
+    fetchHistory();
+  }, [user]);
+
+  const currentPlan = userProfile?.plan ?? "trial";
+  const totalCredits = planCredits[currentPlan] ?? 1000;
+  const remainingCredits = userProfile?.credits ?? 0;
+  const usedCredits = totalCredits - remainingCredits;
+  const creditsPercent = totalCredits > 0 ? Math.round((usedCredits / totalCredits) * 100) : 0;
 
   function handleProfileChange(field: string, value: string) {
-    setProfile((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSave() {
+    if (!user) return;
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: formData.name, company_name: formData.company }),
+      });
+      if (res.ok) {
+        setSaveMsg("已保存");
+        await refreshProfile();
+        setTimeout(() => setSaveMsg(""), 2000);
+      } else {
+        setSaveMsg("保存失败");
+      }
+    } catch {
+      setSaveMsg("保存失败");
+    }
+    setSaving(false);
   }
 
   function handleCopyKey() {
-    navigator.clipboard.writeText(MOCK_API_KEY);
+    navigator.clipboard.writeText("sk-tradex-••••••••••••••••");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (userLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      </div>
+    );
   }
 
   /* ---- shared styles ---- */
@@ -108,7 +164,7 @@ export default function SettingsPage() {
               <label className={labelCls}>姓名</label>
               <input
                 className={inputCls}
-                value={profile.name}
+                value={formData.name}
                 onChange={(e) => handleProfileChange("name", e.target.value)}
               />
             </div>
@@ -118,7 +174,7 @@ export default function SettingsPage() {
               <label className={labelCls}>邮箱</label>
               <input
                 className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                value={profile.email}
+                value={formData.email}
                 disabled
                 readOnly
               />
@@ -129,7 +185,7 @@ export default function SettingsPage() {
               <label className={labelCls}>手机号</label>
               <input
                 className={inputCls}
-                value={profile.phone}
+                value={formData.phone}
                 onChange={(e) => handleProfileChange("phone", e.target.value)}
               />
             </div>
@@ -139,7 +195,7 @@ export default function SettingsPage() {
               <label className={labelCls}>公司名称</label>
               <input
                 className={inputCls}
-                value={profile.company}
+                value={formData.company}
                 onChange={(e) => handleProfileChange("company", e.target.value)}
               />
             </div>
@@ -149,7 +205,7 @@ export default function SettingsPage() {
               <label className={labelCls}>公司英文名</label>
               <input
                 className={inputCls}
-                value={profile.companyEn}
+                value={formData.companyEn}
                 onChange={(e) =>
                   handleProfileChange("companyEn", e.target.value)
                 }
@@ -157,9 +213,18 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end">
-            <button className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 active:scale-[0.98]">
-              保存
+          <div className="mt-6 flex items-center justify-end gap-3">
+            {saveMsg && (
+              <span className={`text-sm ${saveMsg === "已保存" ? "text-emerald-600" : "text-red-500"}`}>
+                {saveMsg}
+              </span>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-50"
+            >
+              {saving ? "保存中…" : "保存"}
             </button>
           </div>
         </div>
@@ -180,10 +245,10 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm text-gray-500">当前套餐</p>
               <p className="mt-1 text-xl font-bold text-gray-900">
-                {plan.name}
+                {planLabels[currentPlan] || currentPlan}
               </p>
               <p className="mt-0.5 text-sm text-gray-500">
-                {plan.price} &middot; 续费日期 {plan.renewalDate}
+                剩余积分: {remainingCredits.toLocaleString()}
               </p>
             </div>
             <button className="inline-flex items-center gap-1 rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 active:scale-[0.98]">
@@ -200,8 +265,8 @@ export default function SettingsPage() {
             <div className="flex items-end justify-between">
               <p className="text-sm font-medium text-gray-700">积分用量</p>
               <p className="text-sm text-gray-500">
-                {credits.used.toLocaleString()} /{" "}
-                {credits.total.toLocaleString()}（{creditsPercent}%）
+                {usedCredits.toLocaleString()} /{" "}
+                {totalCredits.toLocaleString()}（{creditsPercent}%）
               </p>
             </div>
             <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
@@ -230,25 +295,37 @@ export default function SettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {creditHistory.map((entry, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-gray-50 last:border-0"
-                    >
-                      <td className="py-2.5 text-gray-500">{entry.date}</td>
-                      <td className="py-2.5 text-gray-900">{entry.action}</td>
-                      <td
-                        className={`py-2.5 text-right font-medium ${
-                          entry.amount > 0
-                            ? "text-emerald-600"
-                            : "text-gray-900"
-                        }`}
-                      >
-                        {entry.amount > 0 ? "+" : ""}
-                        {entry.amount.toLocaleString()}
+                  {creditHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="py-6 text-center text-sm text-gray-400">
+                        暂无积分变动记录
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    creditHistory.map((entry) => (
+                      <tr
+                        key={entry.id}
+                        className="border-b border-gray-50 last:border-0"
+                      >
+                        <td className="py-2.5 text-gray-500">
+                          {new Date(entry.created_at).toLocaleDateString("zh-CN")}
+                        </td>
+                        <td className="py-2.5 text-gray-900">
+                          {entry.description || entry.action}
+                        </td>
+                        <td
+                          className={`py-2.5 text-right font-medium ${
+                            entry.amount > 0
+                              ? "text-emerald-600"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {entry.amount > 0 ? "+" : ""}
+                          {entry.amount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -272,7 +349,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2">
               <input
                 className={`${inputCls} flex-1 font-mono tracking-wide`}
-                value={keyRevealed ? MOCK_API_KEY : maskKey(MOCK_API_KEY)}
+                value="sk-tradex-••••••••••••••••••••"
                 readOnly
               />
               <button
