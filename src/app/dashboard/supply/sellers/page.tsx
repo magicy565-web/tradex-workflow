@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Users, Store, ShoppingCart, Package, Clock,
-  ChevronDown, Loader2, ExternalLink, Mail,
+  ChevronDown, Loader2, ExternalLink, Mail, Search,
 } from "lucide-react";
 
 interface Subscriber {
@@ -34,6 +34,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export default function SupplySellersPage() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sellerSearch, setSellerSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/supply/subscribers")
@@ -118,6 +119,18 @@ export default function SupplySellersPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-xs">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="搜索卖家名称或域名..."
+          value={sellerSearch}
+          onChange={(e) => setSellerSearch(e.target.value)}
+          className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+        />
+      </div>
+
       {/* Seller List */}
       {loading ? (
         <div className="flex justify-center py-16">
@@ -133,7 +146,7 @@ export default function SupplySellersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {sellers.map(({ seller, subscriptions, activeCount }) => (
+          {sellers.filter(({ seller }) => !sellerSearch || seller.shop_domain.toLowerCase().includes(sellerSearch.toLowerCase()) || (seller.shop_name || "").toLowerCase().includes(sellerSearch.toLowerCase())).map(({ seller, subscriptions, activeCount }) => (
             <div
               key={seller.id}
               className="rounded-xl border border-black/[0.06] bg-white shadow-sm transition-all hover:shadow-md"

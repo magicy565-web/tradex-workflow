@@ -158,18 +158,20 @@ export default function SupplyProductsPage() {
           <h2 className="text-xl font-semibold text-gray-900">供应链产品</h2>
           <p className="text-sm text-gray-500">管理你的供应链产品目录</p>
         </div>
-        <button
-          onClick={() => { setShowImport(true); setImportResult(null); }}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-        >
-          <Upload className="h-4 w-4" /> 导入产品
-        </button>
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-        >
-          <Plus className="h-4 w-4" /> 上架新产品
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowImport(true); setImportResult(null); }}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Upload className="h-4 w-4" /> 导入产品
+          </button>
+          <button
+            onClick={openNew}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" /> 上架新产品
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

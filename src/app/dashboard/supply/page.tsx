@@ -237,6 +237,9 @@ export default function SupplyDashboardPage() {
             <Link href="/dashboard/supply/products" className="flex items-center gap-3 rounded-lg p-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
               <TrendingUp className="h-4 w-4 text-emerald-500" /> 查看产品订阅数据
             </Link>
+            <Link href="/dashboard/supply/analytics" className="flex items-center gap-3 rounded-lg p-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
+              <BarChart3 className="h-4 w-4 text-violet-500" /> 数据分析
+            </Link>
           </div>
         </div>
 

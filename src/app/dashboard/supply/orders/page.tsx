@@ -22,6 +22,7 @@ export default function SupplyOrdersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<SupplyOrder | null>(null);
   const [fulfillModal, setFulfillModal] = useState<SupplyOrder | null>(null);
   const [trackingForm, setTrackingForm] = useState({ tracking_company: "", tracking_number: "", tracking_url: "" });
@@ -118,31 +119,49 @@ export default function SupplyOrdersPage() {
         <p className="text-sm text-gray-500">管理来自 Shopify 卖家的订单</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <select
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-            className="appearance-none rounded-lg border border-gray-200 bg-white py-2 pl-3 pr-8 text-sm outline-none focus:border-indigo-300"
-          >
-            <option value="">全部状态</option>
-            <option value="pending">待确认</option>
-            <option value="confirmed">已确认</option>
-            <option value="processing">备货中</option>
-            <option value="shipped">已发货</option>
-            <option value="delivered">已签收</option>
-            <option value="cancelled">已取消</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      {/* Filter Tabs + Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
+          {[
+            { value: "", label: "全部" },
+            { value: "pending", label: "待确认" },
+            { value: "confirmed", label: "已确认" },
+            { value: "processing", label: "备货中" },
+            { value: "shipped", label: "已发货" },
+            { value: "delivered", label: "已签收" },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => { setFilterStatus(tab.value); setPage(1); }}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                filterStatus === tab.value
+                  ? "bg-gray-900 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <button
-          onClick={selectAll}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          <CheckSquare className="h-4 w-4" />
-          {selectedIds.size === orders.length && orders.length > 0 ? "取消全选" : "全选"}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜索订单号..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-44 rounded-lg border border-gray-200 py-1.5 pl-8 pr-3 text-xs outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+          <button
+            onClick={selectAll}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+            {selectedIds.size === orders.length && orders.length > 0 ? "取消全选" : "全选"}
+          </button>
+        </div>
       </div>
 
       {/* Batch Actions Bar */}
@@ -185,7 +204,7 @@ export default function SupplyOrdersPage() {
             暂无订单
           </div>
         ) : (
-          orders.map((order) => {
+          orders.filter((o) => !searchQuery || o.order_number.toLowerCase().includes(searchQuery.toLowerCase())).map((order) => {
             const sc = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
             const StatusIcon = sc.icon;
             const addr = order.shipping_address;
@@ -293,8 +312,9 @@ export default function SupplyOrdersPage() {
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-400">共 {total} 个订单</p>
           <div className="flex gap-1">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-md border px-3 py-1 text-xs disabled:opacity-40">上一页</button>
-            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="rounded-md border px-3 py-1 text-xs disabled:opacity-40">下一页</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40">上一页</button>
+            <span className="px-2 text-xs text-gray-500">{page} / {totalPages}</span>
+            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40">下一页</button>
           </div>
         </div>
       )}
@@ -406,6 +426,28 @@ export default function SupplyOrdersPage() {
               <div className="border-t pt-3 text-xs text-gray-400">
                 创建时间: {new Date(selectedOrder.created_at).toLocaleString("zh-CN")}
               </div>
+              {/* Actions */}
+              {(selectedOrder.status === "pending" || ["confirmed", "processing"].includes(selectedOrder.status)) && (
+                <div className="flex gap-2 border-t pt-3">
+                  {selectedOrder.status === "pending" && (
+                    <button
+                      onClick={() => { handleConfirm(selectedOrder.id); }}
+                      disabled={actionLoading}
+                      className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      确认订单
+                    </button>
+                  )}
+                  {["confirmed", "processing"].includes(selectedOrder.status) && (
+                    <button
+                      onClick={() => { setSelectedOrder(null); setFulfillModal(selectedOrder); setTrackingForm({ tracking_company: "", tracking_number: "", tracking_url: "" }); }}
+                      className="flex-1 rounded-lg bg-purple-600 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                    >
+                      填写物流发货
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

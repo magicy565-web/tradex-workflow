@@ -159,10 +159,11 @@ export default function NotificationsPage() {
             return (
               <div
                 key={n.id}
+                onClick={() => { if (!n.read) markAsRead([n.id]); }}
                 className={`group relative flex gap-3 rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                   n.read
                     ? "border-black/[0.06] bg-white"
-                    : "border-indigo-100 bg-indigo-50/30"
+                    : "border-indigo-100 bg-indigo-50/30 cursor-pointer"
                 }`}
               >
                 {/* Unread dot */}
