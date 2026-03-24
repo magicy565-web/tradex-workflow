@@ -18,6 +18,8 @@ import {
   LogOut,
   Loader2,
   Workflow,
+  Package,
+  ShoppingCart,
 } from "lucide-react";
 
 const navSections = [
@@ -55,6 +57,14 @@ const navSections = [
     ],
   },
   {
+    label: "供应链",
+    items: [
+      { href: "/dashboard/supply", icon: Package, label: "供应链概览", dot: "green" },
+      { href: "/dashboard/supply/products", icon: Package, label: "产品管理" },
+      { href: "/dashboard/supply/orders", icon: ShoppingCart, label: "订单管理" },
+    ],
+  },
+  {
     label: "设置",
     items: [
       { href: "/dashboard/settings", icon: Settings, label: "系统设置" },
@@ -71,6 +81,9 @@ const pageTitles: Record<string, string> = {
   "/dashboard/content": "内容生成",
   "/dashboard/workflow": "工作流",
   "/dashboard/wecom": "企微集成",
+  "/dashboard/supply": "供应链概览",
+  "/dashboard/supply/products": "供应链产品",
+  "/dashboard/supply/orders": "供应链订单",
   "/dashboard/settings": "系统设置",
 };
 
