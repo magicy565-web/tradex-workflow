@@ -88,32 +88,38 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .ep{fill:none;stroke-width:1.5;opacity:.3;stroke-dasharray:6 4;animation:dflow 1s linear infinite}
 .ep.active{opacity:.8;stroke-width:2}
 
-/* EDIT PANEL */
-.panel{width:0;overflow:hidden;background:var(--bg2);border-left:1px solid var(--bd);flex-shrink:0;transition:width .25s ease;z-index:10;display:flex;flex-direction:column}
-.panel.open{width:360px}
-.panel-head{padding:16px 20px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0}
-.panel-icon{font-size:20px}
-.panel-title{font-size:14px;font-weight:700;color:#fff;flex:1}
-.panel-cat{font-family:var(--m);font-size:10px;padding:2px 8px;border-radius:4px}
-.panel-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:0;color:var(--td);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:all .15s}
-.panel-close:hover{background:var(--bg4);color:var(--t)}
-.panel-body{flex:1;overflow-y:auto;padding:16px 20px}
-.field{margin-bottom:16px}
-.field-label{font-size:11px;font-weight:600;color:var(--td);margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.field-label .req{color:var(--input);font-size:9px}
-.field input,.field textarea,.field select{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;font-family:var(--f);font-size:12px;color:var(--t);outline:none;transition:border-color .2s;resize:vertical}
+/* EDIT — inline popover on node */
+.popover{position:absolute;z-index:50;width:320px;max-height:420px;background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;box-shadow:0 12px 48px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);display:none;flex-direction:column;overflow:hidden}
+.popover.show{display:flex}
+.popover[data-c="input"]{border-color:var(--inbd)}
+.popover[data-c="ai"]{border-color:var(--aibd)}
+.popover[data-c="compose"]{border-color:var(--cpbd)}
+.popover[data-c="output"]{border-color:var(--obd)}
+.pop-head{padding:10px 14px 8px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pop-icon{font-size:16px}
+.pop-title{font-size:12px;font-weight:700;color:#fff;flex:1}
+.pop-cat{font-family:var(--m);font-size:9px;padding:2px 7px;border-radius:4px}
+.pop-close{width:22px;height:22px;border-radius:5px;border:1px solid var(--bd);background:0;color:var(--td);cursor:pointer;display:grid;place-items:center;font-size:13px;transition:all .15s;line-height:1}
+.pop-close:hover{background:var(--bg4);color:var(--t)}
+.pop-body{flex:1;overflow-y:auto;padding:10px 14px}
+.field{margin-bottom:12px}
+.field-label{font-size:10px;font-weight:600;color:var(--td);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.field-label .req{color:var(--input);font-size:8px}
+.field input,.field textarea,.field select{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:6px 8px;font-family:var(--f);font-size:11px;color:var(--t);outline:none;transition:border-color .2s;resize:vertical}
 .field input:focus,.field textarea:focus{border-color:var(--bd2)}
-.field textarea{min-height:80px;line-height:1.5}
-.field textarea.prompt{font-family:var(--m);font-size:11px;min-height:120px;background:var(--bg);border-color:var(--aibd);color:var(--ai)}
+.field textarea{min-height:56px;line-height:1.5}
+.field textarea.prompt{font-family:var(--m);font-size:10px;min-height:88px;background:var(--bg);border-color:var(--aibd);color:var(--ai)}
 .field textarea.prompt:focus{border-color:var(--ai);box-shadow:0 0 12px rgba(59,130,246,.1)}
-.field-hint{font-size:10px;color:var(--tm);margin-top:4px;line-height:1.4}
-.field-tag{display:inline-block;font-family:var(--m);font-size:9px;padding:2px 8px;border-radius:4px;margin:2px 2px 0 0}
-.panel-foot{padding:12px 20px;border-top:1px solid var(--bd);flex-shrink:0;display:flex;gap:8px}
-.panel-foot button{flex:1;padding:8px;border-radius:6px;font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.field-hint{font-size:9px;color:var(--tm);margin-top:3px;line-height:1.4}
+.field-tag{display:inline-block;font-family:var(--m);font-size:8px;padding:1px 6px;border-radius:3px;margin:1px 2px 0 0}
+.pop-foot{padding:8px 14px;border-top:1px solid var(--bd);flex-shrink:0;display:flex;gap:6px}
+.pop-foot button{flex:1;padding:6px;border-radius:5px;font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
 .btn-save{background:var(--ai);color:#fff}
 .btn-save:hover{box-shadow:0 0 16px rgba(59,130,246,.3)}
 .btn-reset{background:var(--bg);color:var(--td);border:1px solid var(--bd) !important}
 .btn-reset:hover{color:var(--t)}
+/* backdrop when popover is open */
+.pop-backdrop{display:none;position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.3)}
 
 /* STATS */
 .stats{position:absolute;top:12px;right:16px;z-index:5;display:flex;gap:6px}
@@ -168,6 +174,21 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           <marker id="mo" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--out)" stroke-width="1"/></marker>
         </defs>
       </svg>
+      <!-- inline popover -->
+      <div class="pop-backdrop" id="popBg"></div>
+      <div class="popover" id="popover">
+        <div class="pop-head">
+          <span class="pop-icon" id="pIcon"></span>
+          <span class="pop-title" id="pTitle"></span>
+          <span class="pop-cat" id="pCat"></span>
+          <button class="pop-close" onclick="closePopover()">&times;</button>
+        </div>
+        <div class="pop-body" id="pBody"></div>
+        <div class="pop-foot">
+          <button class="btn-reset" onclick="resetNode()">重置</button>
+          <button class="btn-save" onclick="saveNode()">保存</button>
+        </div>
+      </div>
     </div>
     <div class="stats" id="stats"></div>
     <div class="legend">
@@ -175,24 +196,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="lg-i"><div class="lg-d" style="background:var(--ai)"></div>AI生成</div>
       <div class="lg-i"><div class="lg-d" style="background:var(--comp)"></div>组装</div>
       <div class="lg-i"><div class="lg-d" style="background:var(--out)"></div>输出</div>
-      <div class="lg-i"><div class="lg-d" style="background:var(--tm);border-radius:50%"></div>空闲</div>
-      <div class="lg-i"><div class="lg-d" style="background:var(--ai);border-radius:50%;box-shadow:0 0 4px var(--ai)"></div>运行</div>
-      <div class="lg-i"><div class="lg-d" style="background:var(--out);border-radius:50%"></div>完成</div>
-    </div>
-  </div>
-
-  <!-- EDIT PANEL -->
-  <div class="panel" id="panel">
-    <div class="panel-head">
-      <span class="panel-icon" id="pIcon"></span>
-      <span class="panel-title" id="pTitle"></span>
-      <span class="panel-cat" id="pCat"></span>
-      <button class="panel-close" onclick="closePanel()">&times;</button>
-    </div>
-    <div class="panel-body" id="pBody"></div>
-    <div class="panel-foot">
-      <button class="btn-reset" onclick="resetNode()">重置默认</button>
-      <button class="btn-save" onclick="saveNode()">保存修改</button>
     </div>
   </div>
 </div>
@@ -393,13 +396,14 @@ full:{
 
 let cur='quick',running=false,selId=null;
 const canvas=document.getElementById('canvas'),svg=document.getElementById('svg');
-const panel=document.getElementById('panel'),pBody=document.getElementById('pBody');
+const popover=document.getElementById('popover'),pBody=document.getElementById('pBody');
+const popBg=document.getElementById('popBg');
 const tlF=document.getElementById('tlF'),tlL=document.getElementById('tlL'),tlT=document.getElementById('tlT');
 const runBtn=document.getElementById('runBtn'),stats=document.getElementById('stats');
 
 function switchTab(w){
   if(running)return;
-  cur=w; closePanel();
+  cur=w; closePopover();
   document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('aq','af');if(t.dataset.wf===w)t.classList.add(w==='quick'?'aq':'af')});
   render();
 }
@@ -420,7 +424,7 @@ function render(){
     el.style.left=n.x+'px'; el.style.top=n.y+'px';
     const hasEditable=n.fields&&n.fields.length>0;
     el.innerHTML=`<div class="nd-strip"></div><div class="nd-dot"></div><div class="nd-body"><div class="nd-row"><span class="nd-icon">${n.icon}</span><span class="nd-title">${n.t}</span><span class="nd-time">${n.time}</span></div><div class="nd-desc">${n.desc}</div>${hasEditable?'<div class="nd-edit-hint">&#9998; 点击编辑</div>':''}</div>${n.c!=='input'?'<div class="hd in"></div>':''}${'<div class="hd out"></div>'}${n.batch?'<div class="nd-badge">BATCH</div>':''}`;
-    el.addEventListener('click',()=>openPanel(n.id));
+    el.addEventListener('click',()=>openPopover(n.id));
     canvas.appendChild(el);
   });
 
@@ -444,10 +448,11 @@ function render(){
   });
 }
 
-function openPanel(id){
+function openPopover(id){
   const wf=WF[cur];
   const nd=wf.nodes.find(n=>n.id===id);
   if(!nd||!nd.fields||!nd.fields.length)return;
+  if(selId===id&&popover.classList.contains('show')){closePopover();return}
   selId=id;
   document.querySelectorAll('.nd').forEach(n=>n.classList.remove('selected'));
   document.getElementById(id)?.classList.add('selected');
@@ -457,6 +462,7 @@ function openPanel(id){
   const pc=document.getElementById('pCat');
   pc.textContent=catLabel[nd.c];
   pc.style.background=catCSS[nd.c][0]; pc.style.color=catCSS[nd.c][1];
+  popover.dataset.c=nd.c;
 
   let html='';
   nd.fields.forEach(f=>{
@@ -475,11 +481,30 @@ function openPanel(id){
     html+='</div>';
   });
   pBody.innerHTML=html;
-  panel.classList.add('open');
+
+  // Position popover next to the node
+  const nodeEl=document.getElementById(id);
+  if(nodeEl){
+    const nx=nd.x, ny=nd.y;
+    const cArea=document.getElementById('cArea');
+    const areaW=cArea.clientWidth, areaH=cArea.clientHeight;
+    const scrollL=cArea.scrollLeft, scrollT=cArea.scrollTop;
+    // Default: place to the right of the node
+    let px=nx+W+12, py=ny;
+    // If popover would overflow right edge, place to the left
+    if(px+320 > scrollL+areaW) px=nx-320-12;
+    // Clamp vertical
+    if(py<8) py=8;
+    popover.style.left=px+'px';
+    popover.style.top=py+'px';
+  }
+  popBg.style.display='block';
+  popover.classList.add('show');
 }
 
-function closePanel(){
-  panel.classList.remove('open');
+function closePopover(){
+  popover.classList.remove('show');
+  popBg.style.display='none';
   document.querySelectorAll('.nd').forEach(n=>n.classList.remove('selected'));
   selId=null;
 }
@@ -495,19 +520,19 @@ function saveNode(){
   });
   const dot=document.querySelector(`#${selId} .nd-dot`);
   if(dot){dot.style.background='var(--input)';dot.style.boxShadow='0 0 6px var(--input)';setTimeout(()=>{dot.style.background='';dot.style.boxShadow=''},800)}
-  closePanel();
+  closePopover();
 }
 
 function resetNode(){
   if(!selId)return;
-  openPanel(selId); // re-render with defaults stored in fields
+  openPopover(selId); // re-render with defaults stored in fields
 }
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function runWorkflow(){
   if(running)return;
-  running=true; closePanel();
+  running=true; closePopover();
   runBtn.classList.add('on');
   runBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 执行中...';
   const wf=WF[cur];
@@ -531,6 +556,7 @@ function runWorkflow(){
   go();
 }
 
+popBg.addEventListener('click',()=>closePopover());
 render();
 </script>
 </body>
