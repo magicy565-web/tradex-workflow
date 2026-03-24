@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeX 建站工作流引擎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+:root{
+--bg:#0a0a10;--bg2:#12121a;--bg3:#1a1a25;--bg4:#222230;
+--bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);
+--t:#e2e2ea;--td:#6e6e82;--tm:#3e3e52;
+--input:#f59e0b;--inbg:rgba(245,158,11,.08);--inbd:rgba(245,158,11,.25);
+--ai:#3b82f6;--aibg:rgba(59,130,246,.08);--aibd:rgba(59,130,246,.25);
+--comp:#a78bfa;--cpbg:rgba(167,139,250,.08);--cpbd:rgba(167,139,250,.25);
+--out:#10b981;--obg:rgba(16,185,129,.08);--obd:rgba(16,185,129,.25);
+--f:'Noto Sans SC',system-ui,sans-serif;--m:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{font-family:var(--f);background:var(--bg);color:var(--t);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;opacity:.4}
+
+/* NAV */
+.nav{height:48px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:20;position:relative;flex-shrink:0}
+.nav-logo{font-family:var(--m);font-weight:600;font-size:15px;color:#fff;letter-spacing:-.5px}
+.nav-logo em{color:var(--ai);font-style:normal;font-weight:400}
+.nav-sep{width:1px;height:20px;background:var(--bd)}
+.nav-label{font-size:11px;color:var(--tm);font-family:var(--m)}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:3px;background:var(--bg);border-radius:8px;padding:3px;border:1px solid var(--bd)}
+.tab{font-family:var(--f);font-size:12px;font-weight:500;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;background:0;color:var(--td);transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--t)}
+.tab.aq{background:var(--inbg);color:var(--input)}
+.tab.af{background:var(--obg);color:var(--out)}
+.run-btn{font-family:var(--m);font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;border:1px solid var(--aibd);background:var(--aibg);color:var(--ai);cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:6px}
+.run-btn:hover{background:var(--ai);color:#fff;box-shadow:0 0 20px rgba(59,130,246,.3)}
+.run-btn.on{background:var(--ai);color:#fff;pointer-events:none}
+
+/* CANVAS */
+.main{flex:1;display:flex;overflow:hidden;position:relative;z-index:1}
+.canvas-area{flex:1;overflow:auto;position:relative}
+.canvas{position:relative;min-height:100%}
+.svg-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+
+/* NODE */
+.nd{position:absolute;width:168px;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;cursor:pointer;z-index:2;transition:all .2s;overflow:visible}
+.nd:hover{border-color:var(--bd2);transform:translateY(-1px);z-index:3}
+.nd.selected{z-index:4}
+.nd[data-c="input"].selected{border-color:var(--input);box-shadow:0 0 16px var(--inbg)}
+.nd[data-c="ai"].selected{border-color:var(--ai);box-shadow:0 0 16px var(--aibg)}
+.nd[data-c="compose"].selected{border-color:var(--comp);box-shadow:0 0 16px var(--cpbg)}
+.nd[data-c="output"].selected{border-color:var(--out);box-shadow:0 0 16px var(--obg)}
+.nd-strip{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:10px 0 0 10px}
+.nd[data-c="input"] .nd-strip{background:var(--input)}
+.nd[data-c="ai"] .nd-strip{background:var(--ai)}
+.nd[data-c="compose"] .nd-strip{background:var(--comp)}
+.nd[data-c="output"] .nd-strip{background:var(--out)}
+.nd-dot{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--tm);transition:all .3s}
+.nd.processing .nd-dot{background:var(--ai);box-shadow:0 0 8px var(--ai);animation:pdot 1s infinite}
+.nd.done .nd-dot{background:var(--out);box-shadow:0 0 6px var(--out)}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.4}}
+.nd-body{padding:10px 12px 10px 14px;display:flex;flex-direction:column;gap:3px}
+.nd-row{display:flex;align-items:center;gap:6px}
+.nd-icon{font-size:14px;line-height:1}
+.nd-title{font-size:12px;font-weight:600;color:#fff;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nd-time{font-family:var(--m);font-size:9px;padding:2px 6px;border-radius:4px}
+.nd[data-c="input"] .nd-time{background:var(--inbg);color:var(--input)}
+.nd[data-c="ai"] .nd-time{background:var(--aibg);color:var(--ai)}
+.nd[data-c="compose"] .nd-time{background:var(--cpbg);color:var(--comp)}
+.nd[data-c="output"] .nd-time{background:var(--obg);color:var(--out)}
+.nd-desc{font-size:10px;color:var(--td);line-height:1.4}
+.nd-edit-hint{font-size:9px;color:var(--tm);margin-top:2px;font-family:var(--m);display:flex;align-items:center;gap:3px}
+.nd-badge{position:absolute;top:-4px;right:-4px;background:var(--ai);color:#fff;font-family:var(--m);font-size:8px;padding:1px 5px;border-radius:4px;z-index:4;font-weight:600}
+/* handles */
+.hd{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--tm);z-index:3}
+.hd.out{right:-4px;top:50%;transform:translateY(-50%)}
+.hd.in{left:-4px;top:50%;transform:translateY(-50%)}
+.nd[data-c="input"] .hd{border-color:var(--input)}
+.nd[data-c="ai"] .hd{border-color:var(--ai)}
+.nd[data-c="compose"] .hd{border-color:var(--comp)}
+.nd[data-c="output"] .hd{border-color:var(--out)}
+
+/* EDGE */
+@keyframes dflow{to{stroke-dashoffset:-20}}
+.ep{fill:none;stroke-width:1.5;opacity:.3;stroke-dasharray:6 4;animation:dflow 1s linear infinite}
+.ep.active{opacity:.8;stroke-width:2}
+
+/* EDIT PANEL */
+.panel{width:0;overflow:hidden;background:var(--bg2);border-left:1px solid var(--bd);flex-shrink:0;transition:width .25s ease;z-index:10;display:flex;flex-direction:column}
+.panel.open{width:360px}
+.panel-head{padding:16px 20px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.panel-icon{font-size:20px}
+.panel-title{font-size:14px;font-weight:700;color:#fff;flex:1}
+.panel-cat{font-family:var(--m);font-size:10px;padding:2px 8px;border-radius:4px}
+.panel-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:0;color:var(--td);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:all .15s}
+.panel-close:hover{background:var(--bg4);color:var(--t)}
+.panel-body{flex:1;overflow-y:auto;padding:16px 20px}
+.field{margin-bottom:16px}
+.field-label{font-size:11px;font-weight:600;color:var(--td);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.field-label .req{color:var(--input);font-size:9px}
+.field input,.field textarea,.field select{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;font-family:var(--f);font-size:12px;color:var(--t);outline:none;transition:border-color .2s;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--bd2)}
+.field textarea{min-height:80px;line-height:1.5}
+.field textarea.prompt{font-family:var(--m);font-size:11px;min-height:120px;background:var(--bg);border-color:var(--aibd);color:var(--ai)}
+.field textarea.prompt:focus{border-color:var(--ai);box-shadow:0 0 12px rgba(59,130,246,.1)}
+.field-hint{font-size:10px;color:var(--tm);margin-top:4px;line-height:1.4}
+.field-tag{display:inline-block;font-family:var(--m);font-size:9px;padding:2px 8px;border-radius:4px;margin:2px 2px 0 0}
+.panel-foot{padding:12px 20px;border-top:1px solid var(--bd);flex-shrink:0;display:flex;gap:8px}
+.panel-foot button{flex:1;padding:8px;border-radius:6px;font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.btn-save{background:var(--ai);color:#fff}
+.btn-save:hover{box-shadow:0 0 16px rgba(59,130,246,.3)}
+.btn-reset{background:var(--bg);color:var(--td);border:1px solid var(--bd) !important}
+.btn-reset:hover{color:var(--t)}
+
+/* STATS */
+.stats{position:absolute;top:12px;right:16px;z-index:5;display:flex;gap:6px}
+.st{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;text-align:center;min-width:64px}
+.st-v{font-family:var(--m);font-size:16px;font-weight:600;color:#fff;line-height:1}
+.st-l{font-size:9px;color:var(--td);margin-top:2px}
+
+/* LEGEND */
+.legend{position:absolute;bottom:12px;left:16px;z-index:5;display:flex;gap:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:6px 14px}
+.lg-i{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--td)}
+.lg-d{width:7px;height:7px;border-radius:2px}
+
+/* TIMELINE */
+.tl{height:40px;background:var(--bg2);border-top:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:20;position:relative;flex-shrink:0}
+.tl-lab{font-family:var(--m);font-size:10px;color:var(--td);min-width:56px}
+.tl-bar{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+.tl-fill{height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,var(--input),var(--ai),var(--comp),var(--out));transition:width .3s}
+.tl-time{font-family:var(--m);font-size:11px;font-weight:600;color:#fff;min-width:80px;text-align:right}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-logo">TradeX<em>.workflow</em></div>
+  <div class="nav-sep"></div>
+  <div class="nav-label">建站工作流引擎 v2.0</div>
+  <div class="nav-r">
+    <div class="tabs">
+      <button class="tab aq" data-wf="quick" onclick="switchTab('quick')">&#9889; 快速建站 ~20min</button>
+      <button class="tab" data-wf="full" onclick="switchTab('full')">&#9881;&#65039; 完整功能站 60-90min</button>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="runWorkflow()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      运行工作流
+    </button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="canvas-area" id="cArea">
+    <div class="canvas" id="canvas">
+      <svg class="svg-layer" id="svg">
+        <defs>
+          <marker id="ai" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--ai)" stroke-width="1"/></marker>
+          <marker id="mi" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--input)" stroke-width="1"/></marker>
+          <marker id="mc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--comp)" stroke-width="1"/></marker>
+          <marker id="mo" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--out)" stroke-width="1"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="legend">
+      <div class="lg-i"><div class="lg-d" style="background:var(--input)"></div>输入</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--ai)"></div>AI生成</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--comp)"></div>组装</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--out)"></div>输出</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--tm);border-radius:50%"></div>空闲</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--ai);border-radius:50%;box-shadow:0 0 4px var(--ai)"></div>运行</div>
+      <div class="lg-i"><div class="lg-d" style="background:var(--out);border-radius:50%"></div>完成</div>
+    </div>
+  </div>
+
+  <!-- EDIT PANEL -->
+  <div class="panel" id="panel">
+    <div class="panel-head">
+      <span class="panel-icon" id="pIcon"></span>
+      <span class="panel-title" id="pTitle"></span>
+      <span class="panel-cat" id="pCat"></span>
+      <button class="panel-close" onclick="closePanel()">&times;</button>
+    </div>
+    <div class="panel-body" id="pBody"></div>
+    <div class="panel-foot">
+      <button class="btn-reset" onclick="resetNode()">重置默认</button>
+      <button class="btn-save" onclick="saveNode()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<div class="tl">
+  <div class="tl-lab" id="tlL">就绪</div>
+  <div class="tl-bar"><div class="tl-fill" id="tlF"></div></div>
+  <div class="tl-time">0:00 / <span id="tlT">~20min</span></div>
+</div>
+<script>
+const W=168, H=72, markerMap={input:'mi',ai:'ai',compose:'mc',output:'mo'};
+const catLabel={input:'输入节点',ai:'AI 生成节点',compose:'组装/配置',output:'输出节点'};
+const catCSS={input:['var(--inbg)','var(--input)'],ai:['var(--aibg)','var(--ai)'],compose:['var(--cpbg)','var(--comp)'],output:['var(--obg)','var(--out)']};
+
+const WF={
+quick:{
+  total:'~20min',st:{n:10,ai:4,par:4,t:'~20 分钟'},
+  nodes:[
+    {id:'q1',c:'input',icon:'🏢',t:'公司信息输入',time:'2min',desc:'名称、英文名、卖点',x:40,y:60,step:0,
+     fields:[
+       {k:'company',l:'公司名称',type:'text',v:'宁波精密注塑机械有限公司',ph:'输入公司中文名称',req:1},
+       {k:'companyEn',l:'英文名称',type:'text',v:'Ningbo Precision Injection Machinery Co., Ltd.',ph:'English company name'},
+       {k:'points',l:'核心卖点',type:'textarea',v:'20年出口经验\nCE / ISO 9001 认证\n全球3000+客户',ph:'每行一条核心卖点',hint:'这些信息将传递给所有 AI 生成节点作为基础素材'}
+     ]},
+    {id:'q2',c:'input',icon:'📦',t:'产品列表输入',time:'3min',desc:'主要产品名称与类型',x:40,y:180,step:0,
+     fields:[
+       {k:'products',l:'产品列表',type:'textarea',v:'Servo Hydraulic Injection Molding Machine\nAll-Electric Injection Molding Machine\nTwo-Platen Injection Molding Machine',ph:'每行一个产品名称',hint:'AI 将为每个产品自动生成英文描述和卖点'}
+     ]},
+    {id:'q3',c:'input',icon:'📞',t:'联系方式输入',time:'1min',desc:'邮箱、WhatsApp、企微',x:40,y:300,step:0,
+     fields:[
+       {k:'email',l:'联系邮箱',type:'text',v:'sales@nb-precision.com',ph:'sales@example.com'},
+       {k:'whatsapp',l:'WhatsApp',type:'text',v:'+86 138 0000 0000',ph:'+86 xxx xxxx xxxx'},
+       {k:'wechat',l:'企业微信',type:'text',v:'',ph:'可选，企微 ID 或二维码链接'}
+     ]},
+    {id:'q4',c:'ai',icon:'✨',t:'AI Hero文案',time:'3min',desc:'首屏标语与主标题',x:300,y:30,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'根据公司信息，生成一句有力的英文首屏标语（Hero Headline），要求：\n1. 突出行业专业性和全球服务能力\n2. 包含具体数据（年份、客户数等）\n3. 适合B2B海外买家阅读\n4. 不超过15个英文单词',hint:'修改提示词可以调整 AI 生成方向'},
+       {k:'tone',l:'文案风格',type:'select',opts:['专业权威','简洁有力','技术导向','情感信任'],v:'专业权威'},
+       {k:'count',l:'候选方案数',type:'select',opts:['1','2','3','5'],v:'3'}
+     ]},
+    {id:'q5',c:'ai',icon:'🤖',t:'AI 产品概述',time:'3min',desc:'产品描述与卖点提炼',x:300,y:120,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'为每个产品生成英文描述（80-120词），要求：\n1. 突出技术优势和应用场景\n2. 包含2-3个关键技术参数\n3. 使用B2B行业术语\n4. 结尾附行动号召（CTA）',hint:'提示词决定产品描述的深度和风格'},
+       {k:'lang',l:'输出语言',type:'select',opts:['English','中英双语'],v:'English'}
+     ]},
+    {id:'q6',c:'ai',icon:'📝',t:'AI 公司简介',time:'3min',desc:'About Us 页面内容',x:300,y:210,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'生成一段专业的英文公司简介（200-300词），包含：\n1. 公司成立时间与发展历程\n2. 核心技术能力与生产实力\n3. 资质认证（ISO/CE等）\n4. 全球客户服务网络\n5. 企业愿景与价值主张',hint:'可添加具体信息让 AI 重点强调'},
+       {k:'sections',l:'包含板块',type:'textarea',v:'公司概述\n发展历程\n生产实力\n资质认证',ph:'每行一个板块名'}
+     ]},
+    {id:'q7',c:'ai',icon:'🔍',t:'AI SEO基础优化',time:'3min',desc:'标题、描述、关键词',x:300,y:300,step:1,
+     fields:[
+       {k:'prompt',l:'SEO 策略提示词',type:'prompt',v:'为注塑机外贸网站生成SEO基础配置：\n1. 页面标题(Title)：含品牌名和核心关键词，60字符内\n2. Meta描述：突出竞争优势，155字符内\n3. 核心关键词：10-15个长尾关键词\n4. H1/H2标题建议',hint:'关键词策略会影响站点的搜索引擎排名'},
+       {k:'markets',l:'目标市场',type:'textarea',v:'Southeast Asia\nSouth America\nMiddle East',ph:'每行一个目标市场'}
+     ]},
+    {id:'q8',c:'compose',icon:'🧩',t:'模板选择+站点组装',time:'1min',desc:'合并所有模块',x:560,y:165,step:2,
+     fields:[
+       {k:'template',l:'行业模板',type:'select',opts:['机械制造通用版','注塑机专业版','重工业深色版','简约白色版'],v:'注塑机专业版'},
+       {k:'layout',l:'页面布局',type:'select',opts:['标准单页','多页导航','产品目录式'],v:'标准单页'},
+       {k:'modules',l:'启用模块',type:'textarea',v:'Hero 首屏\n产品展示\n公司介绍\nSEO 配置\n联系表单\n底部导航',ph:'每行一个模块，可增删排序',hint:'拖动行来调整模块在页面中的显示顺序'}
+     ]},
+    {id:'q9',c:'output',icon:'👁',t:'预览确认',time:'3min',desc:'预览与快速微调',x:780,y:130,step:3,
+     fields:[
+       {k:'device',l:'预览设备',type:'select',opts:['桌面端 1920px','平板 768px','手机 375px','全部设备'],v:'全部设备'},
+       {k:'checklist',l:'检查项',type:'textarea',v:'文案无语法错误\n图片加载正常\n联系表单可提交\n手机端排版正确\nSEO meta标签完整',ph:'逐项确认',hint:'所有检查项通过后才可发布'}
+     ]},
+    {id:'q10',c:'output',icon:'🚀',t:'发布上线',time:'2min',desc:'获取子域名上线',x:780,y:240,step:4,
+     fields:[
+       {k:'subdomain',l:'子域名',type:'text',v:'nb-precision',ph:'your-brand（将生成 your-brand.tradex.site）'},
+       {k:'notify',l:'上线通知',type:'select',opts:['邮件通知','企微通知','邮件+企微','不通知'],v:'邮件+企微'}
+     ]}
+  ],
+  edges:[
+    {f:'q1',t:'q4',c:'input'},{f:'q1',t:'q5',c:'input'},{f:'q1',t:'q6',c:'input'},{f:'q1',t:'q7',c:'input'},
+    {f:'q2',t:'q5',c:'input'},{f:'q3',t:'q8',c:'input'},
+    {f:'q4',t:'q8',c:'ai'},{f:'q5',t:'q8',c:'ai'},{f:'q6',t:'q8',c:'ai'},{f:'q7',t:'q8',c:'ai'},
+    {f:'q8',t:'q9',c:'compose'},{f:'q9',t:'q10',c:'output'}
+  ]
+},
+full:{
+  total:'60-90min',st:{n:19,ai:7,par:7,t:'60–90 分钟'},
+  nodes:[
+    {id:'f1',c:'input',icon:'🏢',t:'详细公司档案',time:'5min',desc:'企业档案、资质、照片',x:40,y:40,step:0,
+     fields:[
+       {k:'company',l:'公司全称',type:'text',v:'宁波精密注塑机械有限公司',req:1},
+       {k:'companyEn',l:'英文名',type:'text',v:'Ningbo Precision Injection Machinery Co., Ltd.'},
+       {k:'founded',l:'成立年份',type:'text',v:'2003',ph:'如 2003'},
+       {k:'certs',l:'资质认证',type:'textarea',v:'ISO 9001:2015\nCE Certification\nSGS Verified Supplier',ph:'每行一条'},
+       {k:'points',l:'核心卖点',type:'textarea',v:'20年出口经验\nCE / ISO 9001 认证\n年产能5000台\n全球3000+客户\n48小时技术响应',hint:'尽量详细，AI会据此生成所有文案'}
+     ]},
+    {id:'f2',c:'input',icon:'📦',t:'完整产品数据库',time:'15min',desc:'全线产品、规格、图片',x:40,y:185,step:0,
+     fields:[
+       {k:'products',l:'产品列表（含参数）',type:'textarea',v:'Servo Hydraulic IMM | 90-4000T | Energy saving 40-80%\nAll-Electric IMM | 50-450T | Precision ±0.01mm\nTwo-Platen IMM | 400-6800T | Large parts\nVertical IMM | 15-250T | Insert molding\nHigh-Speed IMM | 100-500T | Thin-wall packaging',ph:'格式：产品名 | 规格 | 卖点',hint:'每个产品将生成独立详情页，信息越详细效果越好'},
+       {k:'cats',l:'产品分类',type:'textarea',v:'按锁模力分类\n按驱动方式分类\n按应用领域分类',ph:'每行一个分类维度'}
+     ]},
+    {id:'f3',c:'input',icon:'🌍',t:'目标市场策略',time:'5min',desc:'市场、语言、定价',x:40,y:330,step:0,
+     fields:[
+       {k:'markets',l:'目标市场',type:'textarea',v:'Southeast Asia (越南、泰国、印尼)\nSouth America (巴西、墨西哥)\nMiddle East (土耳其、沙特)\nAfrica (尼日利亚、埃及)',ph:'每行一个市场区域'},
+       {k:'lang',l:'语言优先级',type:'textarea',v:'English（主语言）\nSpanish\nPortuguese\nArabic',ph:'按优先级排列'},
+       {k:'currency',l:'货币显示',type:'select',opts:['USD','EUR','多币种自动切换'],v:'USD'}
+     ]},
+    {id:'f4',c:'input',icon:'📱',t:'联系方式+社媒',time:'3min',desc:'WhatsApp/企微/社媒',x:40,y:465,step:0,
+     fields:[
+       {k:'email',l:'联系邮箱',type:'text',v:'sales@nb-precision.com'},
+       {k:'whatsapp',l:'WhatsApp',type:'text',v:'+86 138 0000 0000'},
+       {k:'wechat',l:'企业微信',type:'text',v:''},
+       {k:'linkedin',l:'LinkedIn',type:'text',v:'',ph:'公司主页链接'},
+       {k:'social',l:'其他社媒',type:'textarea',v:'',ph:'Facebook / YouTube / Twitter 链接，每行一个'}
+     ]},
+    {id:'f5',c:'ai',icon:'✨',t:'AI Hero文案',time:'3min',desc:'多版本首屏标语',x:300,y:10,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'根据公司信息，生成5个候选Hero文案方案，每个包含：\n1. 主标题（10-15词英文）\n2. 副标题（20-30词描述）\n3. CTA按钮文字\n\n要求适配不同市场调性，可用于A/B测试。',hint:'可增删要求条目调整生成方向'},
+       {k:'tone',l:'文案风格',type:'select',opts:['专业权威','简洁有力','技术导向','情感信任'],v:'专业权威'}
+     ]},
+    {id:'f6',c:'ai',icon:'📝',t:'AI 公司介绍',time:'3min',desc:'完整About页面',x:300,y:85,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'生成完整的公司介绍页面内容（英文），包含：\n1. 公司概述（100词）\n2. 发展里程碑时间线（5-8个节点）\n3. 生产实力数据（产能、设备、面积）\n4. 团队介绍框架\n5. 质量管理体系描述\n6. 全球服务网络说明'}
+     ]},
+    {id:'f7',c:'ai',icon:'🏆',t:'AI 优势提炼',time:'3min',desc:'Why Choose Us',x:300,y:160,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'从公司信息中提炼6-8个核心竞争优势，每个包含：\n1. 优势标题（3-5词）\n2. 具体描述（30-50词）\n3. 支撑数据或案例\n4. 配套图标建议\n\n要求数据驱动，避免空泛描述。'},
+       {k:'count',l:'优势数量',type:'select',opts:['4','6','8'],v:'6'}
+     ]},
+    {id:'f8',c:'ai',icon:'❓',t:'AI FAQ生成',time:'3min',desc:'行业问答15-20条',x:300,y:235,step:1,
+     fields:[
+       {k:'prompt',l:'生成提示词',type:'prompt',v:'生成15-20条注塑机行业FAQ，覆盖：\n1. 产品技术问题（5条）\n2. 采购流程问题（3条）\n3. 物流与交付（3条）\n4. 售后服务（3条）\n5. 认证与合规（2条）\n6. 定制化服务（2条）\n\n每条Q&A格式，回答50-100词。'}
+     ]},
+    {id:'f9',c:'ai',icon:'🤖',t:'AI 产品详情页',time:'8min',desc:'每个产品独立页面',x:300,y:320,step:1,batch:1,
+     fields:[
+       {k:'prompt',l:'单品页面提示词',type:'prompt',v:'为每个产品生成独立详情页，包含：\n1. 产品标题与型号\n2. 核心优势描述（3-5个亮点）\n3. 详细技术参数表\n4. 应用场景描述\n5. 与竞品对比优势\n6. 相关产品推荐（2-3个）\n7. 询盘CTA按钮',hint:'此节点将批量处理所有产品，每个产品独立生成'},
+       {k:'depth',l:'详情深度',type:'select',opts:['基础版(快速)','标准版','专业版(含对比)'],v:'标准版'}
+     ]},
+    {id:'f10',c:'ai',icon:'🔍',t:'AI SEO深度优化',time:'5min',desc:'全站SEO策略',x:300,y:405,step:1,
+     fields:[
+       {k:'prompt',l:'SEO策略提示词',type:'prompt',v:'生成完整SEO优化方案：\n1. 核心关键词矩阵（30-50个长尾词）\n2. 每个页面的Title/Description\n3. H1-H3标题层级建议\n4. 结构化数据(Schema)配置\n5. sitemap结构\n6. robots.txt规则\n7. 内链策略建议'},
+       {k:'competitor',l:'竞品参考',type:'textarea',v:'',ph:'输入竞品网址，AI将分析其SEO策略（可选）'}
+     ]},
+    {id:'f11',c:'ai',icon:'🌐',t:'AI 多语言关键词',time:'3min',desc:'多语种关键词研究',x:300,y:490,step:1,
+     fields:[
+       {k:'prompt',l:'多语言提示词',type:'prompt',v:'针对以下目标市场和语言，生成本地化关键词：\n1. 每个语言10-15个核心搜索词\n2. 每个关键词附搜索意图标注\n3. 本地化meta描述\n4. 当地行业术语对照表'},
+       {k:'langs',l:'目标语言',type:'textarea',v:'English\nSpanish\nPortuguese\nArabic',ph:'每行一个语言'}
+     ]},
+    {id:'f12',c:'compose',icon:'🧩',t:'站点架构组装',time:'5min',desc:'模块合并+路由配置',x:560,y:160,step:2,
+     fields:[
+       {k:'template',l:'站点模板',type:'select',opts:['机械制造通用版','注塑机专业版','重工业深色版','简约白色版','自定义模板'],v:'注塑机专业版'},
+       {k:'pages',l:'页面结构',type:'textarea',v:'首页 (Hero + 产品概览 + 优势 + CTA)\n产品中心 (分类浏览 + 筛选)\n产品详情页 (独立子页面)\n关于我们 (公司介绍 + 里程碑)\n常见问题 (FAQ手风琴)\n联系我们 (表单 + 地图)',hint:'每行一个页面，括号内为模块说明'},
+       {k:'nav',l:'导航结构',type:'select',opts:['顶部固定导航','侧边导航','汉堡菜单'],v:'顶部固定导航'}
+     ]},
+    {id:'f13',c:'compose',icon:'🎨',t:'设计系统配置',time:'10min',desc:'配色、字体、品牌',x:560,y:295,step:3,
+     fields:[
+       {k:'primary',l:'主色调',type:'text',v:'#1e40af',ph:'HEX色值，如 #1e40af'},
+       {k:'accent',l:'强调色',type:'text',v:'#f59e0b',ph:'HEX色值'},
+       {k:'style',l:'设计风格',type:'select',opts:['现代简约','工业科技','稳重商务','轻量活力'],v:'工业科技'},
+       {k:'font',l:'英文字体',type:'select',opts:['Inter','Poppins','DM Sans','Montserrat'],v:'DM Sans'},
+       {k:'extras',l:'附加设计要素',type:'textarea',v:'产品图使用暗色背景突出\n添加微动效（悬停缩放）\nCTA按钮使用强调色\n数据用图表可视化',ph:'每行一条设计需求'}
+     ]},
+    {id:'f14',c:'compose',icon:'🌐',t:'多语言翻译',time:'5min',desc:'AI翻译+术语校对',x:560,y:425,step:4,
+     fields:[
+       {k:'langs',l:'翻译语言',type:'textarea',v:'Spanish\nPortuguese\nArabic',ph:'每行一个语言（英文已默认包含）'},
+       {k:'glossary',l:'术语表',type:'textarea',v:'injection molding = 注塑成型\nclamping force = 锁模力\nservo hydraulic = 伺服液压\ntoggle = 肘杆式\ntwo-platen = 二板式',ph:'专业术语 = 翻译，确保一致性',hint:'术语表确保行业专有名词在所有语言中翻译准确一致'}
+     ]},
+    {id:'f15',c:'compose',icon:'📋',t:'询盘系统集成',time:'5min',desc:'RFQ表单+渠道对接',x:780,y:160,step:5,
+     fields:[
+       {k:'formFields',l:'表单字段',type:'textarea',v:'姓名 (必填)\n邮箱 (必填)\n公司名称\n国家/地区\n感兴趣的产品 (下拉)\n数量需求\n详细需求描述',ph:'每行一个字段，加(必填)标记'},
+       {k:'channels',l:'通知渠道',type:'textarea',v:'邮件通知 → sales@nb-precision.com\nWhatsApp推送 → +86 138 0000 0000\n企业微信 → 自动创建客户卡片',hint:'询盘提交后自动多渠道通知'},
+       {k:'autoReply',l:'自动回复',type:'select',opts:['开启（推荐）','关闭'],v:'开启（推荐）'}
+     ]},
+    {id:'f16',c:'compose',icon:'🧪',t:'全站测试',time:'10min',desc:'多设备+性能+SEO',x:780,y:295,step:6,
+     fields:[
+       {k:'devices',l:'测试设备',type:'textarea',v:'Desktop 1920x1080\nDesktop 1440x900\nTablet 768x1024\niPhone 14 Pro\nSamsung Galaxy S23',ph:'每行一个设备/分辨率'},
+       {k:'checks',l:'测试清单',type:'textarea',v:'响应式布局适配\n页面加载速度 < 3s\n图片懒加载生效\n表单提交功能\n多语言切换\nSEO评分 > 85\n无断链和404\nSSL证书有效',hint:'所有项目通过后进入发布阶段'},
+       {k:'perf',l:'性能目标',type:'select',opts:['基础(Lighthouse>70)','标准(>85)','极致(>95)'],v:'标准(>85)'}
+     ]},
+    {id:'f17',c:'output',icon:'🔗',t:'域名绑定+发布',time:'5min',desc:'域名、SSL、上线',x:780,y:425,step:7,
+     fields:[
+       {k:'domain',l:'自定义域名',type:'text',v:'www.nb-precision.com',ph:'www.your-domain.com'},
+       {k:'ssl',l:'SSL证书',type:'select',opts:['自动(Let\'s Encrypt)','自有证书上传'],v:'自动(Let\'s Encrypt)'},
+       {k:'cdn',l:'CDN加速',type:'select',opts:['Cloudflare(推荐)','AWS CloudFront','不启用'],v:'Cloudflare(推荐)'}
+     ]},
+    {id:'f18',c:'output',icon:'📈',t:'营销系统对接',time:'—',desc:'Ads+社媒+追踪',x:980,y:295,step:8,
+     fields:[
+       {k:'ga',l:'Google Analytics ID',type:'text',v:'',ph:'G-XXXXXXXXXX'},
+       {k:'gtm',l:'Google Tag Manager',type:'text',v:'',ph:'GTM-XXXXXXX'},
+       {k:'pixel',l:'Facebook Pixel',type:'text',v:'',ph:'Pixel ID'},
+       {k:'ads',l:'Google Ads 转化',type:'text',v:'',ph:'AW-XXXXXXX/XXXXX'},
+       {k:'social',l:'社媒分享配置',type:'textarea',v:'Open Graph 标题\nOpen Graph 描述\nOpen Graph 图片(1200x630)',hint:'配置后分享到社媒时展示专业的预览卡片'}
+     ]}
+  ],
+  edges:[
+    {f:'f1',t:'f5',c:'input'},{f:'f1',t:'f6',c:'input'},{f:'f1',t:'f7',c:'input'},{f:'f1',t:'f8',c:'input'},
+    {f:'f2',t:'f9',c:'input'},{f:'f3',t:'f10',c:'input'},{f:'f3',t:'f11',c:'input'},{f:'f4',t:'f15',c:'input'},
+    {f:'f5',t:'f12',c:'ai'},{f:'f6',t:'f12',c:'ai'},{f:'f7',t:'f12',c:'ai'},{f:'f8',t:'f12',c:'ai'},
+    {f:'f9',t:'f12',c:'ai'},{f:'f10',t:'f12',c:'ai'},{f:'f11',t:'f12',c:'ai'},
+    {f:'f12',t:'f13',c:'compose'},{f:'f13',t:'f14',c:'compose'},{f:'f14',t:'f15',c:'compose'},
+    {f:'f15',t:'f16',c:'compose'},{f:'f16',t:'f17',c:'compose'},{f:'f17',t:'f18',c:'output'}
+  ]
+}};
+
+let cur='quick',running=false,selId=null;
+const canvas=document.getElementById('canvas'),svg=document.getElementById('svg');
+const panel=document.getElementById('panel'),pBody=document.getElementById('pBody');
+const tlF=document.getElementById('tlF'),tlL=document.getElementById('tlL'),tlT=document.getElementById('tlT');
+const runBtn=document.getElementById('runBtn'),stats=document.getElementById('stats');
+
+function switchTab(w){
+  if(running)return;
+  cur=w; closePanel();
+  document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('aq','af');if(t.dataset.wf===w)t.classList.add(w==='quick'?'aq':'af')});
+  render();
+}
+
+function render(){
+  const wf=WF[cur];
+  canvas.querySelectorAll('.nd').forEach(n=>n.remove());
+  svg.querySelectorAll('path').forEach(p=>p.remove());
+  const s=wf.st;
+  stats.innerHTML=`<div class="st"><div class="st-v">${s.n}</div><div class="st-l">总节点</div></div><div class="st"><div class="st-v">${s.ai}</div><div class="st-l">AI节点</div></div><div class="st"><div class="st-v">${s.par}</div><div class="st-l">并行</div></div><div class="st"><div class="st-v" style="font-size:13px">${s.t}</div><div class="st-l">耗时</div></div>`;
+  tlT.textContent=wf.total; tlF.style.width='0'; tlL.textContent='就绪';
+
+  const map={};
+  wf.nodes.forEach(n=>{
+    map[n.id]=n;
+    const el=document.createElement('div');
+    el.className='nd'; el.id=n.id; el.dataset.c=n.c;
+    el.style.left=n.x+'px'; el.style.top=n.y+'px';
+    const hasEditable=n.fields&&n.fields.length>0;
+    el.innerHTML=`<div class="nd-strip"></div><div class="nd-dot"></div><div class="nd-body"><div class="nd-row"><span class="nd-icon">${n.icon}</span><span class="nd-title">${n.t}</span><span class="nd-time">${n.time}</span></div><div class="nd-desc">${n.desc}</div>${hasEditable?'<div class="nd-edit-hint">&#9998; 点击编辑</div>':''}</div>${n.c!=='input'?'<div class="hd in"></div>':''}${'<div class="hd out"></div>'}${n.batch?'<div class="nd-badge">BATCH</div>':''}`;
+    el.addEventListener('click',()=>openPanel(n.id));
+    canvas.appendChild(el);
+  });
+
+  let mx=0,my=0;
+  wf.nodes.forEach(n=>{if(n.x+W+80>mx)mx=n.x+W+80;if(n.y+H+60>my)my=n.y+H+60});
+  canvas.style.width=Math.max(mx,1160)+'px';
+  canvas.style.height=Math.max(my,580)+'px';
+  svg.setAttribute('width',Math.max(mx,1160));
+  svg.setAttribute('height',Math.max(my,580));
+
+  wf.edges.forEach(e=>{
+    const a=map[e.f],b=map[e.t];if(!a||!b)return;
+    const x1=a.x+W,y1=a.y+H/2,x2=b.x,y2=b.y+H/2;
+    const dx=Math.abs(x2-x1)*.45;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d',`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`);
+    p.setAttribute('stroke',`var(--${e.c==='compose'?'comp':e.c})`);
+    p.setAttribute('marker-end',`url(#${markerMap[e.c]})`);
+    p.classList.add('ep'); p.dataset.f=e.f; p.dataset.t=e.t;
+    svg.appendChild(p);
+  });
+}
+
+function openPanel(id){
+  const wf=WF[cur];
+  const nd=wf.nodes.find(n=>n.id===id);
+  if(!nd||!nd.fields||!nd.fields.length)return;
+  selId=id;
+  document.querySelectorAll('.nd').forEach(n=>n.classList.remove('selected'));
+  document.getElementById(id)?.classList.add('selected');
+
+  document.getElementById('pIcon').textContent=nd.icon;
+  document.getElementById('pTitle').textContent=nd.t;
+  const pc=document.getElementById('pCat');
+  pc.textContent=catLabel[nd.c];
+  pc.style.background=catCSS[nd.c][0]; pc.style.color=catCSS[nd.c][1];
+
+  let html='';
+  nd.fields.forEach(f=>{
+    html+='<div class="field">';
+    html+=`<div class="field-label">${f.l}${f.req?'<span class="req">必填</span>':''}${f.type==='prompt'?' <span class="field-tag" style="background:var(--aibg);color:var(--ai)">PROMPT</span>':''}</div>`;
+    if(f.type==='text'){
+      html+=`<input type="text" data-k="${f.k}" value="${esc(f.v||'')}" placeholder="${esc(f.ph||'')}">`;
+    }else if(f.type==='textarea'){
+      html+=`<textarea data-k="${f.k}" placeholder="${esc(f.ph||'')}">${esc(f.v||'')}</textarea>`;
+    }else if(f.type==='prompt'){
+      html+=`<textarea class="prompt" data-k="${f.k}" placeholder="${esc(f.ph||'')}">${esc(f.v||'')}</textarea>`;
+    }else if(f.type==='select'){
+      html+=`<select data-k="${f.k}">${(f.opts||[]).map(o=>`<option${o===f.v?' selected':''}>${o}</option>`).join('')}</select>`;
+    }
+    if(f.hint) html+=`<div class="field-hint">${f.hint}</div>`;
+    html+='</div>';
+  });
+  pBody.innerHTML=html;
+  panel.classList.add('open');
+}
+
+function closePanel(){
+  panel.classList.remove('open');
+  document.querySelectorAll('.nd').forEach(n=>n.classList.remove('selected'));
+  selId=null;
+}
+
+function saveNode(){
+  if(!selId)return;
+  const wf=WF[cur];
+  const nd=wf.nodes.find(n=>n.id===selId);
+  if(!nd)return;
+  pBody.querySelectorAll('[data-k]').forEach(el=>{
+    const f=nd.fields.find(f=>f.k===el.dataset.k);
+    if(f) f.v=el.value;
+  });
+  const dot=document.querySelector(`#${selId} .nd-dot`);
+  if(dot){dot.style.background='var(--input)';dot.style.boxShadow='0 0 6px var(--input)';setTimeout(()=>{dot.style.background='';dot.style.boxShadow=''},800)}
+  closePanel();
+}
+
+function resetNode(){
+  if(!selId)return;
+  openPanel(selId); // re-render with defaults stored in fields
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function runWorkflow(){
+  if(running)return;
+  running=true; closePanel();
+  runBtn.classList.add('on');
+  runBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 执行中...';
+  const wf=WF[cur];
+  document.querySelectorAll('.nd').forEach(n=>n.classList.remove('processing','done'));
+  document.querySelectorAll('.ep').forEach(p=>p.classList.remove('active'));
+  tlF.style.width='0';
+
+  const steps={};
+  wf.nodes.forEach(n=>{if(!steps[n.step])steps[n.step]=[];steps[n.step].push(n)});
+  const mx=Math.max(...Object.keys(steps).map(Number));
+  const ph={input:'录入数据...',ai:'AI 生成中...',compose:'组装配置...',output:'输出中...'};
+  let cs=0;
+  function go(){
+    if(cs>mx){setTimeout(()=>{running=false;runBtn.classList.remove('on');runBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg> 运行工作流';tlL.textContent='✓ 完成'},300);return}
+    const ns=steps[cs]||[];
+    tlF.style.width=((cs+1)/(mx+1)*100)+'%';
+    if(ns.length)tlL.textContent=ph[ns[0].c]||'...';
+    ns.forEach(n=>{document.getElementById(n.id)?.classList.add('processing');document.querySelectorAll(`.ep[data-t="${n.id}"]`).forEach(p=>p.classList.add('active'))});
+    setTimeout(()=>{ns.forEach(n=>{const el=document.getElementById(n.id);if(el){el.classList.remove('processing');el.classList.add('done')}document.querySelectorAll(`.ep[data-f="${n.id}"]`).forEach(p=>p.classList.add('active'))});cs++;setTimeout(go,350)},750);
+  }
+  go();
+}
+
+render();
+</script>
+</body>
+</html>
