@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ChatSection from "./chat-section";
 
 const steps = [
   {
@@ -71,12 +72,10 @@ export default function Home() {
       <section className="py-24">
         <div className="mx-auto max-w-6xl px-6 text-center">
           <h1 className="mx-auto max-w-2xl text-4xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
-            10分钟上线你的注塑机外贸站
+            对话式生成 B2B 外贸独立站
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-gray-500">
-            告诉我们你卖什么，AI
-            自动生成专业 B2B
-            网站。带询盘表单，能收线索，即刻开始获客。
+            和 AI 聊几句，描述你的业务，自动生成专业外贸网站。带询盘表单，能收线索，即刻开始获客。
           </p>
           <div className="mt-10">
             <Link
@@ -87,32 +86,7 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Mock browser window */}
-          <div className="mx-auto mt-16 max-w-3xl overflow-hidden rounded-xl border border-black/[0.06] bg-white shadow-lg">
-            {/* Browser chrome */}
-            <div className="flex items-center gap-2 border-b border-black/[0.06] bg-gray-50 px-4 py-3">
-              <span className="h-3 w-3 rounded-full bg-gray-300" />
-              <span className="h-3 w-3 rounded-full bg-gray-300" />
-              <span className="h-3 w-3 rounded-full bg-gray-300" />
-              <div className="ml-3 flex-1 rounded-md bg-gray-200 px-3 py-1 text-xs text-gray-400">
-                your-brand.tradex.site
-              </div>
-            </div>
-            {/* Page content mock */}
-            <div className="p-6">
-              <div className="h-8 w-32 rounded bg-gray-100" />
-              <div className="mt-6 h-40 rounded-lg bg-gradient-to-br from-indigo-50 to-gray-50" />
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="h-24 rounded-lg bg-gray-50" />
-                <div className="h-24 rounded-lg bg-gray-50" />
-                <div className="h-24 rounded-lg bg-gray-50" />
-              </div>
-              <div className="mt-4 flex gap-3">
-                <div className="h-8 w-24 rounded bg-indigo-100" />
-                <div className="h-8 w-24 rounded bg-gray-100" />
-              </div>
-            </div>
-          </div>
+          <ChatSection />
         </div>
       </section>
 
