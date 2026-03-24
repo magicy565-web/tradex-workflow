@@ -17,6 +17,7 @@ import {
   ChevronRight,
   LogOut,
   Loader2,
+  Workflow,
 } from "lucide-react";
 
 const navSections = [
@@ -48,6 +49,7 @@ const navSections = [
   {
     label: "工具",
     items: [
+      { href: "/dashboard/workflow", icon: Workflow, label: "工作流", dot: "green" },
       { href: "/dashboard/content", icon: PenTool, label: "内容生成" },
       { href: "/dashboard/wecom", icon: Smartphone, label: "企微集成" },
     ],
@@ -67,6 +69,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/inquiries": "询盘中心",
   "/dashboard/leads": "线索管理",
   "/dashboard/content": "内容生成",
+  "/dashboard/workflow": "工作流",
   "/dashboard/wecom": "企微集成",
   "/dashboard/settings": "系统设置",
 };
