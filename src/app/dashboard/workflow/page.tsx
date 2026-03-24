@@ -21,226 +21,251 @@ import "@xyflow/react/dist/style.css";
 
 import WorkflowNode from "./workflow-node";
 import NodePalette from "./node-palette";
-import { NODE_TYPES, getNodeConfig, type NodeTypeConfig } from "./node-types";
-import { Play, Save, Trash2, Undo2, FileDown, FileUp, ZapOff, Zap } from "lucide-react";
+import NodeConfigPanel from "./node-config-panel";
+import { getNodeConfig, type NodeTypeConfig } from "./node-types";
+import { executeWorkflow, validateWorkflow } from "./workflow-engine";
+import {
+  Play,
+  Trash2,
+  RotateCcw,
+  FileDown,
+  FileUp,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Preset demo workflow                                              */
+/*  Default workflow — a real site-building pipeline                   */
 /* ------------------------------------------------------------------ */
 
-const DEMO_NODES: Node[] = [
-  {
-    id: "1",
-    type: "workflowNode",
-    position: { x: 50, y: 180 },
-    data: { label: "新询盘", nodeType: "trigger_inquiry" },
-  },
-  {
-    id: "2",
-    type: "workflowNode",
-    position: { x: 330, y: 180 },
-    data: { label: "AI 翻译", nodeType: "action_translate" },
-  },
-  {
-    id: "3",
-    type: "workflowNode",
-    position: { x: 610, y: 180 },
-    data: { label: "线索评分", nodeType: "action_score_lead" },
-  },
-  {
-    id: "4",
-    type: "workflowNode",
-    position: { x: 910, y: 120 },
-    data: { label: "询盘金额", nodeType: "condition_amount" },
-  },
-  {
-    id: "5",
-    type: "workflowNode",
-    position: { x: 1220, y: 50 },
-    data: { label: "AI 智能回复", nodeType: "action_ai_reply" },
-  },
-  {
-    id: "6",
-    type: "workflowNode",
-    position: { x: 1220, y: 220 },
-    data: { label: "企微通知", nodeType: "action_wecom" },
-  },
-  {
-    id: "7",
-    type: "workflowNode",
-    position: { x: 1520, y: 50 },
-    data: { label: "发送邮件", nodeType: "action_send_email" },
-  },
-  {
-    id: "8",
-    type: "workflowNode",
-    position: { x: 1520, y: 220 },
-    data: { label: "保存到 CRM", nodeType: "output_crm" },
-  },
+const DEFAULT_NODES: Node[] = [
+  { id: "n1", type: "workflowNode", position: { x: 0, y: 0 },
+    data: { nodeType: "input_company", label: "公司信息", status: "idle",
+      companyName: "宁波精密注塑机械有限公司",
+      companyNameEn: "Ningbo Precision Injection Machinery Co., Ltd.",
+      sellingPoints: "20年出口经验\nCE / ISO 9001 认证\n全球3000+客户" } },
+  { id: "n2", type: "workflowNode", position: { x: 0, y: 130 },
+    data: { nodeType: "input_products", label: "产品数据", status: "idle",
+      products: [
+        { name: "Servo Hydraulic Injection Molding Machine" },
+        { name: "All-Electric Injection Molding Machine" },
+        { name: "Two-Platen Injection Molding Machine" },
+      ] } },
+  { id: "n3", type: "workflowNode", position: { x: 0, y: 260 },
+    data: { nodeType: "input_markets", label: "目标市场", status: "idle",
+      markets: ["Southeast Asia", "South America", "Middle East"] } },
+  { id: "n4", type: "workflowNode", position: { x: 0, y: 390 },
+    data: { nodeType: "input_contact", label: "联系方式", status: "idle",
+      email: "sales@nb-precision.com", whatsapp: "+86 138 0000 0000" } },
+  { id: "n5", type: "workflowNode", position: { x: 340, y: 0 },
+    data: { nodeType: "ai_hero", label: "AI Hero 文案", status: "idle" } },
+  { id: "n6", type: "workflowNode", position: { x: 340, y: 100 },
+    data: { nodeType: "ai_products", label: "AI 产品描述", status: "idle" } },
+  { id: "n7", type: "workflowNode", position: { x: 340, y: 200 },
+    data: { nodeType: "ai_about", label: "AI 公司介绍", status: "idle" } },
+  { id: "n8", type: "workflowNode", position: { x: 340, y: 300 },
+    data: { nodeType: "ai_faq", label: "AI FAQ 生成", status: "idle" } },
+  { id: "n9", type: "workflowNode", position: { x: 340, y: 400 },
+    data: { nodeType: "ai_seo", label: "AI SEO 优化", status: "idle" } },
+  { id: "n10", type: "workflowNode", position: { x: 340, y: 500 },
+    data: { nodeType: "ai_why_us", label: "AI 优势提炼", status: "idle" } },
+  { id: "n11", type: "workflowNode", position: { x: 700, y: 180 },
+    data: { nodeType: "compose_site", label: "站点组装", status: "idle" } },
+  { id: "n12", type: "workflowNode", position: { x: 1000, y: 150 },
+    data: { nodeType: "output_preview", label: "站点预览", status: "idle" } },
+  { id: "n13", type: "workflowNode", position: { x: 1000, y: 290 },
+    data: { nodeType: "output_publish", label: "发布上线", status: "idle" } },
 ];
 
-const DEMO_EDGES: Edge[] = [
-  { id: "e1-2", source: "1", target: "2", animated: true, style: { stroke: "#6366f1", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" } },
-  { id: "e2-3", source: "2", target: "3", animated: true, style: { stroke: "#6366f1", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" } },
-  { id: "e3-4", source: "3", target: "4", animated: true, style: { stroke: "#6366f1", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" } },
-  { id: "e4-5", source: "4", sourceHandle: "yes", target: "5", style: { stroke: "#10b981", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#10b981" } },
-  { id: "e4-6", source: "4", sourceHandle: "no", target: "6", style: { stroke: "#ef4444", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#ef4444" } },
-  { id: "e5-7", source: "5", target: "7", style: { stroke: "#6366f1", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" } },
-  { id: "e6-8", source: "6", target: "8", style: { stroke: "#6366f1", strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" } },
+const edgeStyle = { stroke: "#6366f1", strokeWidth: 2 };
+const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "#6366f1" };
+
+const DEFAULT_EDGES: Edge[] = [
+  { id: "e1-5", source: "n1", target: "n5", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e2-6", source: "n2", target: "n6", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e1-7", source: "n1", target: "n7", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e1-8", source: "n1", target: "n8", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e1-9", source: "n1", target: "n9", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e1-10", source: "n1", target: "n10", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e5-11", source: "n5", target: "n11", targetHandle: "in-0", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e6-11", source: "n6", target: "n11", targetHandle: "in-1", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e7-11", source: "n7", target: "n11", targetHandle: "in-2", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e8-11", source: "n8", target: "n11", targetHandle: "in-3", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e9-11", source: "n9", target: "n11", targetHandle: "in-4", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e10-11", source: "n10", target: "n11", targetHandle: "in-5", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e3-11", source: "n3", target: "n11", targetHandle: "in-6", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e4-11", source: "n4", target: "n11", targetHandle: "in-7", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e11-12", source: "n11", target: "n12", style: edgeStyle, markerEnd: edgeMarker },
+  { id: "e12-13", source: "n12", target: "n13", style: edgeStyle, markerEnd: edgeMarker },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Main Editor                                                       */
-/* ------------------------------------------------------------------ */
+let _nextId = 100;
+function nextId() { return `n${++_nextId}`; }
 
-let nodeId = 100;
-function getNextId() {
-  return String(++nodeId);
-}
+const defaultEdgeOptions = { style: edgeStyle, markerEnd: edgeMarker };
 
-const defaultEdgeOptions = {
-  style: { stroke: "#6366f1", strokeWidth: 2 },
-  markerEnd: { type: MarkerType.ArrowClosed as const, color: "#6366f1" },
-  animated: false,
-};
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
 
 export default function WorkflowPage() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(DEMO_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(DEMO_EDGES);
+  const [nodes, setNodes, onNodesChange] = useNodesState(DEFAULT_NODES);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(DEFAULT_EDGES);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [workflowActive, setWorkflowActive] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runResult, setRunResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const nodeTypes = useMemo(() => ({ workflowNode: WorkflowNode }), []);
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, ...defaultEdgeOptions }, eds)),
-    [setEdges]
+    [setEdges],
   );
 
-  // Add node from palette (click)
-  const handleAddNode = useCallback(
-    (config: NodeTypeConfig) => {
-      const id = getNextId();
-      const newNode: Node = {
-        id,
-        type: "workflowNode",
-        position: { x: 300 + Math.random() * 200, y: 150 + Math.random() * 200 },
-        data: { label: config.label, nodeType: config.type },
-      };
-      setNodes((nds) => [...nds, newNode]);
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const onPaneClick = useCallback(() => setSelectedNodeId(null), []);
+
+  const handleUpdateNodeData = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) => {
+      setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n));
     },
-    [setNodes]
+    [setNodes],
   );
 
-  // Drop from palette (drag)
+  const handleAddNode = useCallback((config: NodeTypeConfig) => {
+    const id = nextId();
+    const defaults: Record<string, unknown> = {};
+    if (config.fields) {
+      for (const f of config.fields) {
+        if (f.defaultValue !== undefined) defaults[f.key] = f.defaultValue;
+        else if (f.type === "tags") defaults[f.key] = [];
+        else if (f.type === "products") defaults[f.key] = [];
+        else defaults[f.key] = "";
+      }
+    }
+    setNodes((nds) => [...nds, {
+      id, type: "workflowNode",
+      position: { x: 300 + Math.random() * 200, y: 100 + Math.random() * 300 },
+      data: { nodeType: config.type, label: config.label, status: "idle", ...defaults },
+    }]);
+    setSelectedNodeId(id);
+  }, [setNodes]);
+
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const nodeType = e.dataTransfer.getData("application/tradex-node");
-      if (!nodeType || !rfInstance || !reactFlowWrapper.current) return;
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData("application/tradex-node");
+    if (!nodeType || !rfInstance || !wrapperRef.current) return;
+    const config = getNodeConfig(nodeType);
+    if (!config) return;
+    const bounds = wrapperRef.current.getBoundingClientRect();
+    const position = rfInstance.screenToFlowPosition({ x: e.clientX - bounds.left, y: e.clientY - bounds.top });
+    const defaults: Record<string, unknown> = {};
+    if (config.fields) {
+      for (const f of config.fields) {
+        if (f.defaultValue !== undefined) defaults[f.key] = f.defaultValue;
+        else if (f.type === "tags") defaults[f.key] = [];
+        else if (f.type === "products") defaults[f.key] = [];
+        else defaults[f.key] = "";
+      }
+    }
+    const id = nextId();
+    setNodes((nds) => [...nds, {
+      id, type: "workflowNode", position,
+      data: { nodeType: config.type, label: config.label, status: "idle", ...defaults },
+    }]);
+    setSelectedNodeId(id);
+  }, [rfInstance, setNodes]);
 
-      const config = getNodeConfig(nodeType);
-      if (!config) return;
+  const handleRun = useCallback(async () => {
+    const validation = validateWorkflow(nodes, edges);
+    if (!validation.valid) {
+      setRunResult({ type: "error", message: validation.errors[0] });
+      return;
+    }
+    setRunning(true);
+    setRunResult(null);
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, status: "idle", error: undefined } })));
+    await new Promise((r) => setTimeout(r, 200));
 
-      const bounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = rfInstance.screenToFlowPosition({
-        x: e.clientX - bounds.left,
-        y: e.clientY - bounds.top,
-      });
+    await executeWorkflow(nodes, edges, {
+      onNodeStatusChange: (nodeId, status, error) => {
+        setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, status, error } } : n));
+      },
+      onComplete: (siteData, error) => {
+        setRunning(false);
+        if (error) {
+          setRunResult({ type: "error", message: error });
+        } else if (siteData) {
+          const sub = siteData.subdomain as string;
+          setRunResult({ type: "success", message: sub ? `站点生成成功! 访问 /site/${sub} 查看` : "站点内容生成成功!" });
+        }
+      },
+    });
+  }, [nodes, edges, setNodes]);
 
-      const id = getNextId();
-      const newNode: Node = {
-        id,
-        type: "workflowNode",
-        position,
-        data: { label: config.label, nodeType: config.type },
-      };
-      setNodes((nds) => [...nds, newNode]);
-    },
-    [rfInstance, setNodes]
-  );
+  const handleReset = useCallback(() => {
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, status: "idle", error: undefined } })));
+    setRunResult(null);
+  }, [setNodes]);
 
-  // Delete selected nodes
-  const handleDeleteSelected = useCallback(() => {
+  const handleDelete = useCallback(() => {
     setNodes((nds) => nds.filter((n) => !n.selected));
     setEdges((eds) => eds.filter((e) => !e.selected));
+    setSelectedNodeId(null);
   }, [setNodes, setEdges]);
 
-  // Clear all
-  const handleClear = useCallback(() => {
-    setNodes([]);
-    setEdges([]);
-  }, [setNodes, setEdges]);
-
-  // Save (mock)
-  const handleSave = useCallback(() => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, []);
-
-  // Export
   const handleExport = useCallback(() => {
     if (!rfInstance) return;
     const flow = rfInstance.toObject();
     const blob = new Blob([JSON.stringify(flow, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "workflow.json";
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "tradex-workflow.json"; a.click();
     URL.revokeObjectURL(url);
   }, [rfInstance]);
 
-  // Import
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
+    input.type = "file"; input.accept = ".json";
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const text = await file.text();
       try {
-        const flow = JSON.parse(text);
+        const flow = JSON.parse(await file.text());
         if (flow.nodes) setNodes(flow.nodes);
         if (flow.edges) setEdges(flow.edges);
-      } catch {
-        // ignore invalid JSON
-      }
+      } catch { /* ignore */ }
     };
     input.click();
   }, [setNodes, setEdges]);
 
-  const btnCls =
-    "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.97]";
+  const btnCls = "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.97] disabled:opacity-50";
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden -m-6">
-      {/* Left: Node Palette */}
       <NodePalette onAddNode={handleAddNode} />
 
-      {/* Right: Canvas */}
-      <div className="flex-1" ref={reactFlowWrapper}>
+      <div className="flex-1" ref={wrapperRef}>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onInit={setRfInstance}
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-          nodeTypes={nodeTypes}
-          defaultEdgeOptions={defaultEdgeOptions}
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
+          nodes={nodes} edges={edges}
+          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+          onConnect={onConnect} onInit={setRfInstance}
+          onNodeClick={onNodeClick} onPaneClick={onPaneClick}
+          onDragOver={onDragOver} onDrop={onDrop}
+          nodeTypes={nodeTypes} defaultEdgeOptions={defaultEdgeOptions}
+          fitView fitViewOptions={{ padding: 0.2 }}
           deleteKeyCode={["Backspace", "Delete"]}
           className="bg-gray-50/80"
           proOptions={{ hideAttribution: true }}
@@ -250,84 +275,63 @@ export default function WorkflowPage() {
           <MiniMap
             className="!rounded-lg !border !border-gray-200 !shadow-sm"
             nodeColor={(n) => {
-              const cfg = getNodeConfig(n.data?.nodeType as string);
-              if (!cfg) return "#e5e7eb";
-              if (cfg.category === "trigger") return "#fb923c";
-              if (cfg.category === "action") return "#60a5fa";
-              if (cfg.category === "condition") return "#a78bfa";
-              return "#34d399";
+              const cfg = getNodeConfig((n.data as Record<string, unknown>)?.nodeType as string);
+              return cfg?.accentColor ?? "#e5e7eb";
             }}
             maskColor="rgba(255,255,255,0.7)"
           />
 
-          {/* Toolbar */}
-          <Panel position="top-right" className="flex items-center gap-2">
-            <button onClick={handleSave} className={btnCls}>
-              <Save className="h-3.5 w-3.5" />
-              {saved ? "已保存" : "保存"}
+          <Panel position="top-right" className="flex flex-wrap items-center gap-2">
+            <button onClick={handleExport} className={btnCls} disabled={running}>
+              <FileDown className="h-3.5 w-3.5" /> 导出
             </button>
-            <button onClick={handleExport} className={btnCls}>
-              <FileDown className="h-3.5 w-3.5" />
-              导出
+            <button onClick={handleImport} className={btnCls} disabled={running}>
+              <FileUp className="h-3.5 w-3.5" /> 导入
             </button>
-            <button onClick={handleImport} className={btnCls}>
-              <FileUp className="h-3.5 w-3.5" />
-              导入
+            <button onClick={handleDelete} className={btnCls} disabled={running}>
+              <Trash2 className="h-3.5 w-3.5" /> 删除
             </button>
-            <button onClick={handleDeleteSelected} className={btnCls}>
-              <Trash2 className="h-3.5 w-3.5" />
-              删除
+            <button onClick={handleReset} className={btnCls} disabled={running}>
+              <RotateCcw className="h-3.5 w-3.5" /> 重置
             </button>
-            <button onClick={handleClear} className={`${btnCls} !text-red-600 hover:!bg-red-50`}>
-              <Undo2 className="h-3.5 w-3.5" />
-              清空
-            </button>
-            <div className="ml-2 h-5 w-px bg-gray-200" />
-            <button
-              onClick={() => setWorkflowActive(!workflowActive)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition active:scale-[0.97] ${
-                workflowActive
-                  ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"
-              }`}
-            >
-              {workflowActive ? (
-                <>
-                  <Zap className="h-3.5 w-3.5" />
-                  运行中
-                </>
-              ) : (
-                <>
-                  <Play className="h-3.5 w-3.5" />
-                  启动
-                </>
-              )}
+            <div className="h-5 w-px bg-gray-200" />
+            <button onClick={handleRun} disabled={running}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition active:scale-[0.97] disabled:opacity-60 ${running ? "bg-amber-500 text-white" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
+              {running
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 运行中...</>
+                : <><Play className="h-3.5 w-3.5" /> 运行工作流</>}
             </button>
           </Panel>
 
-          {/* Status bar */}
+          {runResult && (
+            <Panel position="top-center" className="!mt-2">
+              <div className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium shadow-lg ${runResult.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                {runResult.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                <span>{runResult.message}</span>
+                <button onClick={() => setRunResult(null)} className="ml-2 rounded p-0.5 hover:bg-black/5">&times;</button>
+              </div>
+            </Panel>
+          )}
+
           <Panel position="bottom-left" className="!mb-0 !ml-0">
             <div className="flex items-center gap-4 rounded-tr-lg border-t border-r border-gray-200 bg-white/90 px-4 py-2 text-[11px] text-gray-500 backdrop-blur">
               <span>节点: {nodes.length}</span>
               <span>连线: {edges.length}</span>
               <span className="flex items-center gap-1">
-                状态:{" "}
-                {workflowActive ? (
-                  <>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    运行中
-                  </>
-                ) : (
-                  <>
-                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                    未启动
-                  </>
-                )}
+                {running
+                  ? <><span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> 执行中</>
+                  : <><span className="h-1.5 w-1.5 rounded-full bg-gray-400" /> 就绪</>}
               </span>
             </div>
           </Panel>
         </ReactFlow>
       </div>
+
+      <NodeConfigPanel
+        selectedNode={selectedNode}
+        onUpdateNodeData={handleUpdateNodeData}
+        onClose={() => setSelectedNodeId(null)}
+      />
     </div>
   );
 }

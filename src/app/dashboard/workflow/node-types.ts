@@ -1,194 +1,246 @@
-// Node category and type definitions for the workflow editor
+// Node category and type definitions for the site-builder workflow editor
+
+export interface NodeField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "tags" | "products";
+  placeholder?: string;
+  defaultValue?: string | string[];
+}
 
 export interface NodeTypeConfig {
   type: string;
   label: string;
-  category: "trigger" | "action" | "condition" | "output";
-  icon: string; // emoji
-  color: string; // tailwind bg class
-  borderColor: string;
+  category: "input" | "ai" | "compose" | "output";
+  icon: string;
+  color: string; // tailwind bg class for node background
+  borderColor: string; // tailwind border class
+  accentColor: string; // hex color for minimap and edges
   description: string;
-  inputs: number;
-  outputs: number;
+  inputs: number; // number of input handles
+  outputs: number; // number of output handles
+  fields?: NodeField[]; // configurable fields (only for input nodes)
 }
 
 export const NODE_CATEGORIES = [
-  { key: "trigger" as const, label: "触发器", color: "text-orange-600" },
-  { key: "action" as const, label: "动作", color: "text-blue-600" },
-  { key: "condition" as const, label: "条件", color: "text-violet-600" },
+  { key: "input" as const, label: "输入", color: "text-orange-600" },
+  { key: "ai" as const, label: "AI 生成", color: "text-blue-600" },
+  { key: "compose" as const, label: "组装", color: "text-violet-600" },
   { key: "output" as const, label: "输出", color: "text-emerald-600" },
 ];
 
 export const NODE_TYPES: NodeTypeConfig[] = [
-  // Triggers
+  // ── Input 输入 ──────────────────────────────────────────────────────
   {
-    type: "trigger_inquiry",
-    label: "新询盘",
-    category: "trigger",
-    icon: "📩",
+    type: "input_company",
+    label: "公司信息",
+    category: "input",
+    icon: "🏢",
     color: "bg-orange-50",
     borderColor: "border-orange-300",
-    description: "当收到新询盘时触发",
+    accentColor: "#f97316",
+    description: "输入公司名称与基本信息",
     inputs: 0,
     outputs: 1,
+    fields: [
+      {
+        key: "companyName",
+        label: "公司名称",
+        type: "text",
+        placeholder: "例：宁波精密注塑机械有限公司",
+      },
+      {
+        key: "companyNameEn",
+        label: "英文名称",
+        type: "text",
+        placeholder: "e.g. Ningbo Precision Injection Machinery Co., Ltd.",
+      },
+      {
+        key: "sellingPoints",
+        label: "核心卖点",
+        type: "textarea",
+        placeholder: "每行一条，例：\n20 年出口经验\nCE / ISO 认证\n全球 3000+ 客户",
+      },
+    ],
   },
   {
-    type: "trigger_visitor",
-    label: "网站访客",
-    category: "trigger",
-    icon: "👁",
+    type: "input_products",
+    label: "产品数据",
+    category: "input",
+    icon: "📦",
     color: "bg-orange-50",
     borderColor: "border-orange-300",
-    description: "当新访客访问站点时触发",
+    accentColor: "#f97316",
+    description: "定义产品列表与规格参数",
     inputs: 0,
     outputs: 1,
+    fields: [
+      {
+        key: "products",
+        label: "产品列表",
+        type: "products",
+        placeholder: "添加产品及其规格参数",
+      },
+    ],
   },
   {
-    type: "trigger_schedule",
-    label: "定时触发",
-    category: "trigger",
-    icon: "⏰",
+    type: "input_markets",
+    label: "目标市场",
+    category: "input",
+    icon: "🌍",
     color: "bg-orange-50",
     borderColor: "border-orange-300",
-    description: "按设定时间周期触发",
+    accentColor: "#f97316",
+    description: "选择目标出口市场",
     inputs: 0,
     outputs: 1,
+    fields: [
+      {
+        key: "markets",
+        label: "目标市场",
+        type: "tags",
+        placeholder: "输入市场名称后回车，例：Southeast Asia",
+        defaultValue: ["Southeast Asia", "South America", "Middle East"],
+      },
+    ],
+  },
+  {
+    type: "input_contact",
+    label: "联系方式",
+    category: "input",
+    icon: "📞",
+    color: "bg-orange-50",
+    borderColor: "border-orange-300",
+    accentColor: "#f97316",
+    description: "设置联系邮箱与 WhatsApp",
+    inputs: 0,
+    outputs: 1,
+    fields: [
+      {
+        key: "email",
+        label: "联系邮箱",
+        type: "text",
+        placeholder: "sales@example.com",
+      },
+      {
+        key: "whatsapp",
+        label: "WhatsApp",
+        type: "text",
+        placeholder: "+86 138 0000 0000",
+      },
+    ],
   },
 
-  // Actions
+  // ── AI 生成 ─────────────────────────────────────────────────────────
   {
-    type: "action_ai_reply",
-    label: "AI 智能回复",
-    category: "action",
+    type: "ai_hero",
+    label: "AI Hero 文案",
+    category: "ai",
+    icon: "✨",
+    color: "bg-blue-50",
+    borderColor: "border-blue-300",
+    accentColor: "#3b82f6",
+    description: "AI 生成首屏标语与主标题",
+    inputs: 1,
+    outputs: 1,
+  },
+  {
+    type: "ai_products",
+    label: "AI 产品描述",
+    category: "ai",
     icon: "🤖",
     color: "bg-blue-50",
     borderColor: "border-blue-300",
-    description: "使用 AI 自动生成回复内容",
+    accentColor: "#3b82f6",
+    description: "AI 生成产品描述与技术规格",
     inputs: 1,
     outputs: 1,
   },
   {
-    type: "action_send_email",
-    label: "发送邮件",
-    category: "action",
-    icon: "✉️",
+    type: "ai_about",
+    label: "AI 公司介绍",
+    category: "ai",
+    icon: "📝",
     color: "bg-blue-50",
     borderColor: "border-blue-300",
-    description: "向客户发送邮件",
+    accentColor: "#3b82f6",
+    description: "AI 生成公司简介与认证信息",
     inputs: 1,
     outputs: 1,
   },
   {
-    type: "action_wecom",
-    label: "企微通知",
-    category: "action",
-    icon: "💬",
+    type: "ai_faq",
+    label: "AI FAQ 生成",
+    category: "ai",
+    icon: "❓",
     color: "bg-blue-50",
     borderColor: "border-blue-300",
-    description: "发送企业微信通知",
+    accentColor: "#3b82f6",
+    description: "AI 生成常见问题与解答",
     inputs: 1,
     outputs: 1,
   },
   {
-    type: "action_score_lead",
-    label: "线索评分",
-    category: "action",
-    icon: "⭐",
+    type: "ai_seo",
+    label: "AI SEO 优化",
+    category: "ai",
+    icon: "🔍",
     color: "bg-blue-50",
     borderColor: "border-blue-300",
-    description: "AI 自动评估线索质量",
+    accentColor: "#3b82f6",
+    description: "AI 生成 SEO 标题、描述与关键词",
     inputs: 1,
     outputs: 1,
   },
   {
-    type: "action_translate",
-    label: "AI 翻译",
-    category: "action",
-    icon: "🌐",
+    type: "ai_why_us",
+    label: "AI 优势提炼",
+    category: "ai",
+    icon: "🏆",
     color: "bg-blue-50",
     borderColor: "border-blue-300",
-    description: "自动翻译询盘内容",
-    inputs: 1,
-    outputs: 1,
-  },
-  {
-    type: "action_delay",
-    label: "延时等待",
-    category: "action",
-    icon: "⏳",
-    color: "bg-blue-50",
-    borderColor: "border-blue-300",
-    description: "等待指定时间后继续",
+    accentColor: "#3b82f6",
+    description: "AI 生成公司核心竞争优势",
     inputs: 1,
     outputs: 1,
   },
 
-  // Conditions
+  // ── Compose 组装 ────────────────────────────────────────────────────
   {
-    type: "condition_amount",
-    label: "询盘金额",
-    category: "condition",
-    icon: "💰",
+    type: "compose_site",
+    label: "站点组装",
+    category: "compose",
+    icon: "🧩",
     color: "bg-violet-50",
     borderColor: "border-violet-300",
-    description: "根据询盘金额大小分流",
-    inputs: 1,
-    outputs: 2,
-  },
-  {
-    type: "condition_country",
-    label: "客户国家",
-    category: "condition",
-    icon: "🌍",
-    color: "bg-violet-50",
-    borderColor: "border-violet-300",
-    description: "根据客户所在国家分流",
-    inputs: 1,
-    outputs: 2,
-  },
-  {
-    type: "condition_product",
-    label: "产品类型",
-    category: "condition",
-    icon: "🏭",
-    color: "bg-violet-50",
-    borderColor: "border-violet-300",
-    description: "根据产品类型分流",
-    inputs: 1,
-    outputs: 2,
+    accentColor: "#8b5cf6",
+    description: "将各模块组装为完整站点",
+    inputs: 8,
+    outputs: 1,
   },
 
-  // Outputs
+  // ── Output 输出 ─────────────────────────────────────────────────────
   {
-    type: "output_crm",
-    label: "保存到 CRM",
+    type: "output_preview",
+    label: "站点预览",
     category: "output",
-    icon: "💾",
+    icon: "👁",
     color: "bg-emerald-50",
     borderColor: "border-emerald-300",
-    description: "将数据保存到 CRM 系统",
+    accentColor: "#10b981",
+    description: "预览生成的站点效果",
     inputs: 1,
-    outputs: 0,
+    outputs: 1,
   },
   {
-    type: "output_status",
-    label: "更新状态",
+    type: "output_publish",
+    label: "发布上线",
     category: "output",
-    icon: "🏷",
+    icon: "🚀",
     color: "bg-emerald-50",
     borderColor: "border-emerald-300",
-    description: "更新询盘或线索状态",
-    inputs: 1,
-    outputs: 0,
-  },
-  {
-    type: "output_webhook",
-    label: "Webhook",
-    category: "output",
-    icon: "🔗",
-    color: "bg-emerald-50",
-    borderColor: "border-emerald-300",
-    description: "调用外部 Webhook 接口",
+    accentColor: "#10b981",
+    description: "发布站点到线上",
     inputs: 1,
     outputs: 0,
   },
