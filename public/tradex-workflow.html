@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeX 建站工作流引擎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a10;
+  --bg-surface: #12121a;
+  --bg-card: #1a1a25;
+  --bg-hover: #222230;
+  --border: rgba(255,255,255,0.07);
+  --border-light: rgba(255,255,255,0.12);
+  --text: #e2e2ea;
+  --text-dim: #6e6e82;
+  --text-muted: #3e3e52;
+  --input: #f59e0b;
+  --input-bg: rgba(245,158,11,0.08);
+  --input-border: rgba(245,158,11,0.25);
+  --ai: #3b82f6;
+  --ai-bg: rgba(59,130,246,0.08);
+  --ai-border: rgba(59,130,246,0.25);
+  --compose: #a78bfa;
+  --compose-bg: rgba(167,139,250,0.08);
+  --compose-border: rgba(167,139,250,0.25);
+  --output: #10b981;
+  --output-bg: rgba(16,185,129,0.08);
+  --output-border: rgba(16,185,129,0.25);
+  --orange-accent: #f59e0b;
+  --emerald-accent: #10b981;
+  --font: 'Noto Sans SC', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+
+/* grid bg */
+body::before{content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;z-index:0;opacity:0.4}
+
+/* NAV */
+.nav{height:48px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:10;position:relative;flex-shrink:0}
+.nav-logo{font-family:var(--mono);font-weight:600;font-size:15px;color:#fff;letter-spacing:-0.5px}
+.nav-logo span{color:var(--ai);font-weight:400}
+.nav-sep{width:1px;height:20px;background:var(--border)}
+.nav-label{font-size:12px;color:var(--text-dim);font-family:var(--mono)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+
+/* TABS */
+.tabs{display:flex;align-items:center;gap:4px;background:var(--bg);border-radius:8px;padding:3px;border:1px solid var(--border)}
+.tab{font-family:var(--font);font-size:12px;font-weight:500;padding:6px 16px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:var(--text-dim);transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active-quick{background:var(--input-bg);color:var(--orange-accent);box-shadow:0 0 12px rgba(245,158,11,0.1)}
+.tab.active-full{background:var(--output-bg);color:var(--emerald-accent);box-shadow:0 0 12px rgba(16,185,129,0.1)}
+
+/* RUN BTN */
+.run-btn{font-family:var(--mono);font-size:11px;font-weight:600;padding:6px 18px;border-radius:6px;border:1px solid var(--ai-border);background:var(--ai-bg);color:var(--ai);cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:6px}
+.run-btn:hover{background:var(--ai);color:#fff;box-shadow:0 0 20px rgba(59,130,246,0.3)}
+.run-btn.running{background:var(--ai);color:#fff;pointer-events:none}
+.run-btn svg{width:14px;height:14px}
+
+/* MAIN CANVAS */
+.canvas-wrap{flex:1;position:relative;overflow:auto;z-index:1}
+.canvas{position:relative;min-height:100%}
+
+/* SVG LAYER */
+.svg-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+
+/* NODE */
+.node{position:absolute;width:164px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;cursor:default;z-index:2;transition:box-shadow .25s,border-color .25s,transform .2s;overflow:hidden}
+.node:hover{border-color:var(--border-light);transform:translateY(-1px)}
+.node:hover .node-glow{opacity:1}
+.node-glow{position:absolute;inset:-1px;border-radius:10px;pointer-events:none;opacity:0;transition:opacity .25s}
+.node[data-cat="input"] .node-glow{box-shadow:0 0 20px var(--input-bg)}
+.node[data-cat="ai"] .node-glow{box-shadow:0 0 20px var(--ai-bg)}
+.node[data-cat="compose"] .node-glow{box-shadow:0 0 20px var(--compose-bg)}
+.node[data-cat="output"] .node-glow{box-shadow:0 0 20px var(--output-bg)}
+.node-strip{position:absolute;left:0;top:0;bottom:0;width:3px}
+.node[data-cat="input"] .node-strip{background:var(--input)}
+.node[data-cat="ai"] .node-strip{background:var(--ai)}
+.node[data-cat="compose"] .node-strip{background:var(--compose)}
+.node[data-cat="output"] .node-strip{background:var(--output)}
+.node-body{padding:10px 12px 10px 14px;display:flex;flex-direction:column;gap:4px}
+.node-top{display:flex;align-items:center;gap:7px}
+.node-icon{font-size:15px;line-height:1;flex-shrink:0}
+.node-title{font-size:12px;font-weight:600;color:#fff;line-height:1.3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node-time{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0;line-height:1}
+.node[data-cat="input"] .node-time{background:var(--input-bg);color:var(--input)}
+.node[data-cat="ai"] .node-time{background:var(--ai-bg);color:var(--ai)}
+.node[data-cat="compose"] .node-time{background:var(--compose-bg);color:var(--compose)}
+.node[data-cat="output"] .node-time{background:var(--output-bg);color:var(--output)}
+.node-desc{font-size:10px;color:var(--text-dim);line-height:1.4;padding-left:0}
+.node-status{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--text-muted);transition:background .3s,box-shadow .3s}
+.node.processing .node-status{background:var(--ai);box-shadow:0 0 8px var(--ai);animation:pulse-dot 1s infinite}
+.node.done .node-status{background:var(--output);box-shadow:0 0 6px var(--output)}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* handle dots */
+.node-handle{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--bg-card);border:1.5px solid var(--text-muted);z-index:3}
+.node-handle.out{right:-4px;top:50%;transform:translateY(-50%)}
+.node-handle.in{left:-4px;top:50%;transform:translateY(-50%)}
+.node[data-cat="input"] .node-handle{border-color:var(--input)}
+.node[data-cat="ai"] .node-handle{border-color:var(--ai)}
+.node[data-cat="compose"] .node-handle{border-color:var(--compose)}
+.node[data-cat="output"] .node-handle{border-color:var(--output)}
+
+/* TOOLTIP */
+.tooltip{position:absolute;background:var(--bg-surface);border:1px solid var(--border-light);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text-dim);line-height:1.5;max-width:220px;z-index:100;pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.tooltip .tt-title{font-weight:600;color:#fff;margin-bottom:4px;font-size:12px}
+.tooltip .tt-cat{font-family:var(--mono);font-size:10px;margin-bottom:6px}
+.tooltip.show{opacity:1}
+
+/* STATS */
+.stats{position:absolute;top:12px;right:16px;z-index:5;display:flex;gap:8px}
+.stat{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;text-align:center;min-width:72px}
+.stat-val{font-family:var(--mono);font-size:18px;font-weight:600;color:#fff;line-height:1}
+.stat-label{font-size:10px;color:var(--text-dim);margin-top:3px}
+
+/* LEGEND */
+.legend{position:absolute;bottom:60px;left:16px;z-index:5;display:flex;gap:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim)}
+.legend-dot{width:8px;height:8px;border-radius:2px}
+
+/* TIMELINE */
+.timeline{height:44px;background:var(--bg-surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:10;position:relative;flex-shrink:0}
+.timeline-label{font-family:var(--mono);font-size:10px;color:var(--text-dim);white-space:nowrap;min-width:60px}
+.timeline-bar{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative}
+.timeline-fill{height:100%;width:0%;border-radius:3px;transition:width .3s}
+.timeline-segments{display:flex;height:100%;width:100%;position:absolute;top:0;left:0}
+.tl-seg{height:100%;transition:opacity .3s}
+.timeline-time{font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;min-width:80px;text-align:right}
+.timeline-markers{position:absolute;top:-16px;left:0;right:0;display:flex;font-family:var(--mono);font-size:9px;color:var(--text-muted)}
+
+/* EDGE ANIMATION */
+@keyframes dash-flow{to{stroke-dashoffset:-20}}
+.edge-path{fill:none;stroke-width:1.5;opacity:0.35;stroke-dasharray:6 4;animation:dash-flow 1s linear infinite}
+.edge-path.active{opacity:0.8;stroke-width:2}
+.edge-arrow{fill:none;stroke-width:1.5;opacity:0.35}
+.edge-arrow.active{opacity:0.8}
+
+/* PHASE LABELS */
+.phase-label{position:absolute;z-index:3;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);writing-mode:vertical-rl;transform:rotate(180deg)}
+
+/* BATCH INDICATOR */
+.node-batch{position:absolute;top:-3px;right:-3px;left:auto;width:auto;height:auto;background:var(--ai);color:#fff;font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:4px;z-index:4;font-weight:600}
+
+/* scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg-hover);border-radius:3px}
+
+/* responsive */
+@media(max-width:768px){
+  .stats{top:auto;bottom:60px;right:8px;flex-direction:column;gap:4px}
+  .stat{min-width:auto;padding:6px 10px}
+  .legend{bottom:108px}
+}
+</style>
+</head>
+<body>
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-logo">TradeX<span>.workflow</span></div>
+  <div class="nav-sep"></div>
+  <div class="nav-label">建站工作流引擎 v2.0</div>
+  <div class="nav-right">
+    <div class="tabs">
+      <button class="tab active-quick" data-wf="quick" onclick="switchTab('quick')">&#9889; 快速建站 · ~20分钟</button>
+      <button class="tab" data-wf="full" onclick="switchTab('full')">&#9881;&#65039; 完整功能站 · 60-90分钟</button>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="runWorkflow()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      运行工作流
+    </button>
+  </div>
+</div>
+
+<!-- MAIN CANVAS -->
+<div class="canvas-wrap" id="canvasWrap">
+  <div class="canvas" id="canvas">
+    <svg class="svg-layer" id="svgLayer">
+      <defs>
+        <marker id="arrow-input" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--input)" stroke-width="1"/></marker>
+        <marker id="arrow-ai" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--ai)" stroke-width="1"/></marker>
+        <marker id="arrow-compose" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--compose)" stroke-width="1"/></marker>
+        <marker id="arrow-output" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--output)" stroke-width="1"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsPanel"></div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--input)"></div>输入</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--ai)"></div>AI 生成</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--compose)"></div>组装/配置</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--output)"></div>输出</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted);border-radius:50%"></div>空闲</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--ai);border-radius:50%;box-shadow:0 0 4px var(--ai)"></div>执行中</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--output);border-radius:50%"></div>完成</div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    <div class="tt-title"></div>
+    <div class="tt-cat"></div>
+    <div class="tt-desc"></div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="timeline">
+  <div class="timeline-label" id="tlLabel">就绪</div>
+  <div class="timeline-bar">
+    <div class="timeline-fill" id="tlFill" style="background:linear-gradient(90deg,var(--input),var(--ai),var(--compose),var(--output))"></div>
+  </div>
+  <div class="timeline-time" id="tlTime">0:00 / <span id="tlTotal">~20min</span></div>
+</div>
+<script>
+const WORKFLOWS = {
+  quick: {
+    totalTime: '~20min',
+    stats: { nodes: 10, ai: 4, parallel: 4, time: '~20 分钟' },
+    nodes: [
+      // INPUTS
+      { id:'q-in1', cat:'input', icon:'🏢', title:'公司信息输入', time:'2min', desc:'公司名称、英文名、核心卖点', detail:'输入基础公司信息，AI 将据此生成所有文案内容。仅需填写3个字段即可启动。', x:40, y:60, step:0 },
+      { id:'q-in2', cat:'input', icon:'📦', title:'产品列表输入', time:'3min', desc:'主要产品名称与类型', detail:'输入核心产品线，无需详细参数。AI 将自动扩展产品描述。', x:40, y:180, step:0 },
+      { id:'q-in3', cat:'input', icon:'📞', title:'联系方式输入', time:'1min', desc:'邮箱、WhatsApp、企微', detail:'填写对外联系方式，将直接注入站点联系模块与询盘表单。', x:40, y:300, step:0 },
+      // AI — parallel
+      { id:'q-ai1', cat:'ai', icon:'✨', title:'AI Hero文案', time:'3min', desc:'首屏标语与主标题', detail:'基于公司信息自动生成吸引力首屏文案，适配B2B海外买家阅读习惯。', x:300, y:30, step:1 },
+      { id:'q-ai2', cat:'ai', icon:'🤖', title:'AI 产品概述', time:'3min', desc:'产品描述与卖点提炼', detail:'为每个产品生成英文描述和技术参数概要，突出核心竞争力。', x:300, y:120, step:1 },
+      { id:'q-ai3', cat:'ai', icon:'📝', title:'AI 公司简介', time:'3min', desc:'About Us 页面内容', detail:'生成专业的公司简介，包含历史、资质、生产能力描述。', x:300, y:210, step:1 },
+      { id:'q-ai4', cat:'ai', icon:'🔍', title:'AI SEO基础优化', time:'3min', desc:'标题、描述、关键词', detail:'自动生成meta标签、页面标题和核心关键词，覆盖目标市场搜索习惯。', x:300, y:300, step:1 },
+      // COMPOSE
+      { id:'q-comp', cat:'compose', icon:'🧩', title:'模板选择+站点组装', time:'1min', desc:'合并所有模块生成站点', detail:'将4个AI模块输出 + 联系方式模块合并到所选行业模板中，自动组装完整站点。', x:560, y:165, step:2 },
+      // OUTPUT
+      { id:'q-out1', cat:'output', icon:'👁', title:'预览确认', time:'3min', desc:'实时预览与快速微调', detail:'在线预览完整站点，支持文案微调和布局检查。', x:780, y:130, step:3 },
+      { id:'q-out2', cat:'output', icon:'🚀', title:'发布上线', time:'2min', desc:'获取子域名，即刻上线', detail:'一键发布到 tradex.site 子域名，站点即刻对全球买家可访问。', x:780, y:240, step:4 },
+    ],
+    edges: [
+      { from:'q-in1', to:'q-ai1', cat:'input' },
+      { from:'q-in1', to:'q-ai2', cat:'input' },
+      { from:'q-in1', to:'q-ai3', cat:'input' },
+      { from:'q-in2', to:'q-ai2', cat:'input' },
+      { from:'q-in1', to:'q-ai4', cat:'input' },
+      { from:'q-ai1', to:'q-comp', cat:'ai' },
+      { from:'q-ai2', to:'q-comp', cat:'ai' },
+      { from:'q-ai3', to:'q-comp', cat:'ai' },
+      { from:'q-ai4', to:'q-comp', cat:'ai' },
+      { from:'q-in3', to:'q-comp', cat:'input' },
+      { from:'q-comp', to:'q-out1', cat:'compose' },
+      { from:'q-out1', to:'q-out2', cat:'output' },
+    ],
+    phases: [
+      { label:'信息录入', color:'var(--input)', pct:25 },
+      { label:'AI 并行生成', color:'var(--ai)', pct:35 },
+      { label:'组装', color:'var(--compose)', pct:15 },
+      { label:'发布上线', color:'var(--output)', pct:25 },
+    ]
+  },
+  full: {
+    totalTime: '60-90min',
+    stats: { nodes: 19, ai: 7, parallel: 7, time: '60–90 分钟' },
+    nodes: [
+      // INPUTS
+      { id:'f-in1', cat:'input', icon:'🏢', title:'详细公司档案', time:'5min', desc:'企业档案、资质、工厂照片', detail:'完整企业信息录入，含营业执照、ISO/CE认证文件、工厂实拍照片上传。', x:40, y:50, step:0 },
+      { id:'f-in2', cat:'input', icon:'📦', title:'完整产品数据库', time:'15min', desc:'全线产品、规格、图片', detail:'逐一录入每个产品的型号、技术参数、价格区间、高清产品图和分类标签。', x:40, y:180, step:0 },
+      { id:'f-in3', cat:'input', icon:'🌍', title:'目标市场策略', time:'5min', desc:'市场、语言、定价', detail:'选择目标出口市场（如东南亚、南美），配置语言优先级和区域定价策略。', x:40, y:310, step:0 },
+      { id:'f-in4', cat:'input', icon:'📱', title:'联系方式+社媒', time:'3min', desc:'WhatsApp/企微/邮件/社媒', detail:'配置所有对外联系渠道，包括WhatsApp Business、企业微信、LinkedIn主页等。', x:40, y:440, step:0 },
+      // AI nodes
+      { id:'f-ai1', cat:'ai', icon:'✨', title:'AI Hero文案', time:'3min', desc:'多版本首屏标语生成', detail:'生成3-5个候选Hero文案，适配不同市场调性，可A/B测试。', x:300, y:20, step:1 },
+      { id:'f-ai2', cat:'ai', icon:'📝', title:'AI 公司介绍', time:'3min', desc:'完整About页面', detail:'生成含里程碑时间线、团队介绍、生产实力的完整公司介绍页。', x:300, y:100, step:1 },
+      { id:'f-ai3', cat:'ai', icon:'🏆', title:'AI 优势提炼', time:'3min', desc:'Why Choose Us 模块', detail:'从公司信息中提炼6-8个核心竞争优势，配图标和数据支撑。', x:300, y:180, step:1 },
+      { id:'f-ai4', cat:'ai', icon:'❓', title:'AI FAQ生成', time:'3min', desc:'行业常见问题解答', detail:'基于行业知识库生成15-20个高质量FAQ，覆盖产品、物流、售后等维度。', x:300, y:260, step:1 },
+      { id:'f-ai5', cat:'ai', icon:'🤖', title:'AI 产品详情页', time:'8min', desc:'每个产品独立页面', detail:'为每个产品生成独立详情页：技术参数表、应用场景、对比优势、相关产品推荐。', x:300, y:350, step:1, batch:true },
+      { id:'f-ai6', cat:'ai', icon:'🔍', title:'AI SEO深度优化', time:'5min', desc:'全站SEO策略', detail:'生成完整SEO方案：长尾关键词矩阵、结构化数据、sitemap、robots配置。', x:300, y:440, step:1 },
+      { id:'f-ai7', cat:'ai', icon:'🌐', title:'AI 多语言关键词', time:'3min', desc:'多语种关键词研究', detail:'针对各目标市场语言，生成本地化搜索关键词和meta描述。', x:300, y:520, step:1 },
+      // COMPOSE chain
+      { id:'f-comp1', cat:'compose', icon:'🧩', title:'站点架构组装', time:'5min', desc:'模块合并+路由配置', detail:'将所有AI生成内容合并到站点框架，配置页面路由、导航结构和内链体系。', x:560, y:180, step:2 },
+      { id:'f-comp2', cat:'compose', icon:'🎨', title:'设计系统配置', time:'10min', desc:'配色、字体、品牌视觉', detail:'定制品牌配色方案、字体选择、按钮样式、图片滤镜等全局设计变量。', x:560, y:310, step:3 },
+      { id:'f-comp3', cat:'compose', icon:'🌐', title:'多语言翻译', time:'5min', desc:'AI翻译+人工校对', detail:'AI自动翻译全站到目标语言，支持人工校对关键术语和品牌用语。', x:560, y:440, step:4 },
+      // MORE COMPOSE
+      { id:'f-comp4', cat:'compose', icon:'📋', title:'询盘系统集成', time:'5min', desc:'RFQ表单+渠道对接', detail:'配置定制化RFQ询盘表单，对接WhatsApp、企业微信实时通知和CRM系统。', x:780, y:180, step:5 },
+      { id:'f-comp5', cat:'compose', icon:'🧪', title:'全站测试', time:'10min', desc:'多设备+性能+SEO审计', detail:'自动化测试：响应式适配(手机/平板/桌面)、加载性能、SEO评分、链接检查。', x:780, y:310, step:6 },
+      // OUTPUT
+      { id:'f-out1', cat:'output', icon:'🔗', title:'域名绑定+发布', time:'5min', desc:'自定义域名、SSL、上线', detail:'绑定企业自有域名，自动配置SSL证书和CDN加速，正式上线。', x:780, y:440, step:7 },
+      { id:'f-out2', cat:'output', icon:'📈', title:'营销系统对接', time:'—', desc:'Google Ads+社媒+数据追踪', detail:'配置Google Analytics、Google Ads转化追踪、Facebook Pixel和社媒分享标签。', x:980, y:310, step:8 },
+    ],
+    edges: [
+      { from:'f-in1', to:'f-ai1', cat:'input' },
+      { from:'f-in1', to:'f-ai2', cat:'input' },
+      { from:'f-in1', to:'f-ai3', cat:'input' },
+      { from:'f-in1', to:'f-ai4', cat:'input' },
+      { from:'f-in2', to:'f-ai5', cat:'input' },
+      { from:'f-in3', to:'f-ai6', cat:'input' },
+      { from:'f-in3', to:'f-ai7', cat:'input' },
+      { from:'f-in4', to:'f-comp4', cat:'input' },
+      { from:'f-ai1', to:'f-comp1', cat:'ai' },
+      { from:'f-ai2', to:'f-comp1', cat:'ai' },
+      { from:'f-ai3', to:'f-comp1', cat:'ai' },
+      { from:'f-ai4', to:'f-comp1', cat:'ai' },
+      { from:'f-ai5', to:'f-comp1', cat:'ai' },
+      { from:'f-ai6', to:'f-comp1', cat:'ai' },
+      { from:'f-ai7', to:'f-comp1', cat:'ai' },
+      { from:'f-comp1', to:'f-comp2', cat:'compose' },
+      { from:'f-comp2', to:'f-comp3', cat:'compose' },
+      { from:'f-comp3', to:'f-comp4', cat:'compose' },
+      { from:'f-comp4', to:'f-comp5', cat:'compose' },
+      { from:'f-comp5', to:'f-out1', cat:'compose' },
+      { from:'f-out1', to:'f-out2', cat:'output' },
+    ],
+    phases: [
+      { label:'详细录入', color:'var(--input)', pct:20 },
+      { label:'AI 深度生成', color:'var(--ai)', pct:25 },
+      { label:'组装与配置', color:'var(--compose)', pct:35 },
+      { label:'测试与发布', color:'var(--output)', pct:20 },
+    ]
+  }
+};
+
+let currentWF = 'quick';
+let isRunning = false;
+
+const canvas = document.getElementById('canvas');
+const svgLayer = document.getElementById('svgLayer');
+const statsPanel = document.getElementById('statsPanel');
+const tooltip = document.getElementById('tooltip');
+const tlFill = document.getElementById('tlFill');
+const tlLabel = document.getElementById('tlLabel');
+const tlTime = document.getElementById('tlTime');
+const tlTotal = document.getElementById('tlTotal');
+const runBtn = document.getElementById('runBtn');
+
+// -- SCALE for positioning (multiply stored x/y) --
+const S = 1;
+const NODE_W = 164;
+const NODE_H_APPROX = 72;
+
+function switchTab(wf) {
+  if (isRunning) return;
+  currentWF = wf;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.remove('active-quick','active-full');
+    if (t.dataset.wf === wf) t.classList.add(wf === 'quick' ? 'active-quick' : 'active-full');
+  });
+  renderWorkflow();
+}
+
+function renderWorkflow() {
+  const wf = WORKFLOWS[currentWF];
+  // Clear
+  canvas.querySelectorAll('.node,.phase-label').forEach(n => n.remove());
+  svgLayer.querySelectorAll('path').forEach(p => p.remove());
+
+  // Stats
+  const s = wf.stats;
+  statsPanel.innerHTML = `
+    <div class="stat"><div class="stat-val">${s.nodes}</div><div class="stat-label">总节点</div></div>
+    <div class="stat"><div class="stat-val">${s.ai}</div><div class="stat-label">AI 节点</div></div>
+    <div class="stat"><div class="stat-val">${s.parallel}</div><div class="stat-label">并行任务</div></div>
+    <div class="stat"><div class="stat-val" style="font-size:14px">${s.time}</div><div class="stat-label">预计耗时</div></div>`;
+
+  tlTotal.textContent = wf.totalTime;
+  tlFill.style.width = '0%';
+  tlLabel.textContent = '就绪';
+  tlTime.querySelector('#tlTotal') || 0;
+
+  // Render nodes
+  const nodeMap = {};
+  wf.nodes.forEach(n => {
+    nodeMap[n.id] = n;
+    const el = document.createElement('div');
+    el.className = 'node';
+    el.id = n.id;
+    el.dataset.cat = n.cat;
+    el.style.left = n.x + 'px';
+    el.style.top = n.y + 'px';
+    el.innerHTML = `
+      <div class="node-glow"></div>
+      <div class="node-strip"></div>
+      <div class="node-status"></div>
+      <div class="node-body">
+        <div class="node-top">
+          <span class="node-icon">${n.icon}</span>
+          <span class="node-title">${n.title}</span>
+          <span class="node-time">${n.time}</span>
+        </div>
+        <div class="node-desc">${n.desc}</div>
+      </div>
+      ${n.cat !== 'input' || n.id.includes('in3') ? '<div class="node-handle in"></div>' : ''}
+      ${n.cat !== 'output' || n.id.includes('out1') ? '<div class="node-handle out"></div>' : ''}
+      ${n.batch ? '<div class="node-batch">BATCH</div>' : ''}`;
+    el.addEventListener('mouseenter', e => showTooltip(e, n));
+    el.addEventListener('mouseleave', hideTooltip);
+    canvas.appendChild(el);
+  });
+
+  // Set canvas size
+  let maxX = 0, maxY = 0;
+  wf.nodes.forEach(n => {
+    if (n.x + NODE_W + 60 > maxX) maxX = n.x + NODE_W + 60;
+    if (n.y + NODE_H_APPROX + 60 > maxY) maxY = n.y + NODE_H_APPROX + 60;
+  });
+  canvas.style.width = Math.max(maxX, 1100) + 'px';
+  canvas.style.height = Math.max(maxY, 580) + 'px';
+  svgLayer.setAttribute('width', Math.max(maxX, 1100));
+  svgLayer.setAttribute('height', Math.max(maxY, 580));
+
+  // Draw edges
+  wf.edges.forEach(e => {
+    const from = nodeMap[e.from];
+    const to = nodeMap[e.to];
+    if (!from || !to) return;
+    const x1 = from.x + NODE_W;
+    const y1 = from.y + NODE_H_APPROX / 2;
+    const x2 = to.x;
+    const y2 = to.y + NODE_H_APPROX / 2;
+    const dx = Math.abs(x2 - x1) * 0.45;
+    const d = `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+    const catColor = `var(--${e.cat})`;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', catColor);
+    path.setAttribute('marker-end', `url(#arrow-${e.cat})`);
+    path.classList.add('edge-path');
+    path.dataset.from = e.from;
+    path.dataset.to = e.to;
+    svgLayer.appendChild(path);
+  });
+}
+
+function showTooltip(e, node) {
+  const catLabels = { input:'输入节点', ai:'AI 生成节点', compose:'组装/配置节点', output:'输出节点' };
+  const catColors = { input:'var(--input)', ai:'var(--ai)', compose:'var(--compose)', output:'var(--output)' };
+  tooltip.querySelector('.tt-title').textContent = node.icon + ' ' + node.title;
+  tooltip.querySelector('.tt-cat').innerHTML = `<span style="color:${catColors[node.cat]}">${catLabels[node.cat]}</span> · ${node.time}`;
+  tooltip.querySelector('.tt-desc').textContent = node.detail || node.desc;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const wrap = document.getElementById('canvasWrap').getBoundingClientRect();
+  tooltip.style.left = (rect.right - wrap.left + 12) + 'px';
+  tooltip.style.top = (rect.top - wrap.top) + 'px';
+  tooltip.classList.add('show');
+}
+function hideTooltip() { tooltip.classList.remove('show'); }
+
+// --- RUN WORKFLOW ANIMATION ---
+function runWorkflow() {
+  if (isRunning) return;
+  isRunning = true;
+  runBtn.classList.add('running');
+  runBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 执行中...';
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(style);
+
+  const wf = WORKFLOWS[currentWF];
+  // Reset all
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('processing','done'));
+  document.querySelectorAll('.edge-path').forEach(p => p.classList.remove('active'));
+  tlFill.style.width = '0%';
+
+  // Group nodes by step
+  const steps = {};
+  wf.nodes.forEach(n => {
+    if (!steps[n.step]) steps[n.step] = [];
+    steps[n.step].push(n);
+  });
+  const maxStep = Math.max(...Object.keys(steps).map(Number));
+  const stepDelay = 800;
+
+  let currentStep = 0;
+  function executeStep() {
+    if (currentStep > maxStep) {
+      setTimeout(() => {
+        isRunning = false;
+        runBtn.classList.remove('running');
+        runBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> 运行工作流';
+        tlLabel.textContent = '完成';
+        style.remove();
+      }, 400);
+      return;
+    }
+    const nodesInStep = steps[currentStep] || [];
+    const pct = ((currentStep + 1) / (maxStep + 1)) * 100;
+    tlFill.style.width = pct + '%';
+
+    const phaseNames = { input:'录入数据...', ai:'AI 生成中...', compose:'组装中...', output:'输出中...' };
+    if (nodesInStep.length > 0) {
+      tlLabel.textContent = phaseNames[nodesInStep[0].cat] || '处理中...';
+    }
+
+    // Mark processing
+    nodesInStep.forEach(n => {
+      const el = document.getElementById(n.id);
+      if (el) el.classList.add('processing');
+      // Activate incoming edges
+      document.querySelectorAll(`.edge-path[data-to="${n.id}"]`).forEach(p => p.classList.add('active'));
+    });
+
+    setTimeout(() => {
+      // Mark done
+      nodesInStep.forEach(n => {
+        const el = document.getElementById(n.id);
+        if (el) { el.classList.remove('processing'); el.classList.add('done'); }
+        // Activate outgoing edges
+        document.querySelectorAll(`.edge-path[data-from="${n.id}"]`).forEach(p => p.classList.add('active'));
+      });
+      currentStep++;
+      setTimeout(executeStep, stepDelay * 0.4);
+    }, stepDelay);
+  }
+  executeStep();
+}
+
+// -- INIT --
+renderWorkflow();
+</script>
+</body>
+</html>
