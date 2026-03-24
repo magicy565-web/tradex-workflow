@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Package, Plus, Search, Edit3, Trash2, Eye, EyeOff,
-  ChevronDown, X, Loader2, DollarSign, Users, ShoppingCart,
+  ChevronDown, X, Loader2, DollarSign, Users, ShoppingCart, Upload,
 } from "lucide-react";
 import type { SupplyProduct } from "@/types/supply-chain";
 
@@ -38,6 +38,9 @@ export default function SupplyProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SupplyProduct | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
 
   /* -- fetch -- */
   const fetchProducts = useCallback(async () => {
@@ -106,6 +109,24 @@ export default function SupplyProductsPage() {
     fetchProducts();
   };
 
+  const handleImport = async () => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/supply/products/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "Injection Molding Machine" }),
+      });
+      const json = await res.json();
+      setImportResult(json);
+      if (json.imported > 0) fetchProducts();
+    } catch {
+      setImportResult({ imported: 0, skipped: 0, errors: ["Import request failed"] });
+    }
+    setImporting(false);
+  };
+
   const toggleStatus = async (p: SupplyProduct) => {
     const newStatus = p.status === "active" ? "paused" : "active";
     await fetch(`/api/supply/products/${p.id}`, {
@@ -137,6 +158,12 @@ export default function SupplyProductsPage() {
           <h2 className="text-xl font-semibold text-gray-900">供应链产品</h2>
           <p className="text-sm text-gray-500">管理你的供应链产品目录</p>
         </div>
+        <button
+          onClick={() => { setShowImport(true); setImportResult(null); }}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+        >
+          <Upload className="h-4 w-4" /> 导入产品
+        </button>
         <button
           onClick={openNew}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
@@ -490,6 +517,53 @@ export default function SupplyProductsPage() {
                 {editingProduct ? "保存修改" : "上架产品"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">从站点导入产品</h3>
+              <button onClick={() => setShowImport(false)} className="rounded-md p-1 hover:bg-gray-100">
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-gray-500">
+              从你已有的 TradeX 站点中导入产品到供应链目录。系统将自动跳过已存在的产品。
+            </p>
+            {importResult ? (
+              <div className="space-y-2">
+                <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+                  成功导入 {importResult.imported} 个产品
+                  {importResult.skipped > 0 && `，跳过 ${importResult.skipped} 个`}
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    {importResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <button onClick={() => setShowImport(false)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                    完成
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowImport(false)} className="rounded-lg border px-4 py-2 text-sm">取消</button>
+                <button
+                  onClick={handleImport}
+                  disabled={importing}
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+                  开始导入
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

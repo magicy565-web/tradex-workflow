@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sendSupplyNotification } from "@/lib/supply-notifications";
+import { pushWebhookEvent } from "@/lib/webhook-delivery";
 import { NextResponse } from "next/server";
 
 // PUT /api/supply/orders/[id]/fulfill - Fill tracking info and mark as shipped
@@ -24,7 +25,7 @@ export async function PUT(
   // Verify order status allows fulfillment
   const { data: order, error: fetchError } = await supabase
     .from("supply_orders")
-    .select("id, status")
+    .select("id, status, seller_id, order_number")
     .eq("id", id)
     .eq("supplier_id", user.id)
     .single();
@@ -59,12 +60,25 @@ export async function PUT(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Notify about shipment
+  // Notify about shipment (WeChat Work)
   sendSupplyNotification("order.shipped", {
     order_number: data.order_number,
     tracking_company: body.tracking_company,
     tracking_number: body.tracking_number,
     tracking_url: body.tracking_url,
+  }).catch(() => {});
+
+  // Push webhook to seller's Shopify App
+  pushWebhookEvent({
+    event: "order.fulfilled",
+    data: {
+      order_id: data.id,
+      order_number: data.order_number,
+      tracking_company: body.tracking_company || null,
+      tracking_number: body.tracking_number,
+      tracking_url: body.tracking_url || null,
+    },
+    seller_id: order.seller_id,
   }).catch(() => {});
 
   return NextResponse.json(data);

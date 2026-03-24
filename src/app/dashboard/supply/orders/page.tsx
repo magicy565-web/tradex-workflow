@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   ShoppingCart, Search, ChevronDown, Loader2, Truck,
-  CheckCircle, Package, Clock, XCircle, Eye, X,
+  CheckCircle, Package, Clock, XCircle, Eye, X, CheckSquare,
 } from "lucide-react";
 import type { SupplyOrder } from "@/types/supply-chain";
 
@@ -26,6 +26,45 @@ export default function SupplyOrdersPage() {
   const [fulfillModal, setFulfillModal] = useState<SupplyOrder | null>(null);
   const [trackingForm, setTrackingForm] = useState({ tracking_company: "", tracking_number: "", tracking_url: "" });
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)));
+    }
+  };
+
+  const handleBatchAction = async (action: "confirm" | "fulfill" | "cancel") => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    const payload: Record<string, unknown> = {
+      action,
+      order_ids: Array.from(selectedIds),
+    };
+    if (action === "fulfill") {
+      payload.tracking_company = "Batch";
+      payload.tracking_number = "BATCH-" + Date.now();
+    }
+    await fetch("/api/supply/orders/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setBatchLoading(false);
+    setSelectedIds(new Set());
+    fetchOrders();
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -97,7 +136,42 @@ export default function SupplyOrdersPage() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         </div>
+        <button
+          onClick={selectAll}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+        >
+          <CheckSquare className="h-4 w-4" />
+          {selectedIds.size === orders.length && orders.length > 0 ? "取消全选" : "全选"}
+        </button>
       </div>
+
+      {/* Batch Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+          <span className="text-sm font-medium text-indigo-700">
+            已选择 {selectedIds.size} 个订单
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleBatchAction("confirm")}
+              disabled={batchLoading}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              批量确认
+            </button>
+            <button
+              onClick={() => handleBatchAction("cancel")}
+              disabled={batchLoading}
+              className="rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              批量取消
+            </button>
+          </div>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-indigo-600 hover:text-indigo-700">
+            清除选择
+          </button>
+        </div>
+      )}
 
       {/* Order List */}
       <div className="space-y-3">
@@ -121,6 +195,12 @@ export default function SupplyOrdersPage() {
                 className="rounded-xl border border-black/[0.06] bg-white p-4 shadow-sm transition-all hover:shadow-md"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(order.id)}
+                    onChange={() => toggleSelect(order.id)}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
                   {/* Order Info */}
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100">

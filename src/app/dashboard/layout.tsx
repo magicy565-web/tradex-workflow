@@ -21,6 +21,8 @@ import {
   Package,
   ShoppingCart,
   Users,
+  BarChart3,
+  Bell,
 } from "lucide-react";
 
 const navSections = [
@@ -64,6 +66,8 @@ const navSections = [
       { href: "/dashboard/supply/products", icon: Package, label: "产品管理" },
       { href: "/dashboard/supply/orders", icon: ShoppingCart, label: "订单管理" },
       { href: "/dashboard/supply/sellers", icon: Users, label: "卖家管理" },
+      { href: "/dashboard/supply/analytics", icon: BarChart3, label: "数据分析" },
+      { href: "/dashboard/supply/notifications", icon: Bell, label: "通知中心" },
     ],
   },
   {
@@ -87,6 +91,8 @@ const pageTitles: Record<string, string> = {
   "/dashboard/supply/products": "供应链产品",
   "/dashboard/supply/orders": "供应链订单",
   "/dashboard/supply/sellers": "卖家管理",
+  "/dashboard/supply/analytics": "数据分析",
+  "/dashboard/supply/notifications": "通知中心",
   "/dashboard/settings": "系统设置",
 };
 

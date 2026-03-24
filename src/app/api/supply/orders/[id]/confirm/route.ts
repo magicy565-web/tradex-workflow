@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sendSupplyNotification } from "@/lib/supply-notifications";
+import { pushWebhookEvent } from "@/lib/webhook-delivery";
 import { NextResponse } from "next/server";
 
 // PUT /api/supply/orders/[id]/confirm - Confirm an order
@@ -18,7 +19,7 @@ export async function PUT(
   // Verify order exists and is in pending status
   const { data: order, error: fetchError } = await supabase
     .from("supply_orders")
-    .select("id, status")
+    .select("id, status, seller_id")
     .eq("id", id)
     .eq("supplier_id", user.id)
     .single();
@@ -46,9 +47,16 @@ export async function PUT(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Notify about confirmation
+  // Notify about confirmation (WeChat Work)
   sendSupplyNotification("order.confirmed", {
     order_number: data.order_number,
+  }).catch(() => {});
+
+  // Push webhook to seller's Shopify App
+  pushWebhookEvent({
+    event: "order.confirmed",
+    data: { order_id: data.id, order_number: data.order_number },
+    seller_id: order.seller_id,
   }).catch(() => {});
 
   return NextResponse.json(data);

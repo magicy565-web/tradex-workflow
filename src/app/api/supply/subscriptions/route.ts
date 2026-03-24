@@ -1,5 +1,6 @@
 import { verifyHmacAuth } from "@/lib/hmac-auth";
 import { sendSupplyNotification } from "@/lib/supply-notifications";
+import { notifySupplierNewSubscription } from "@/lib/notification-center";
 import { NextResponse } from "next/server";
 
 // POST /api/supply/subscriptions - Seller subscribes to a product
@@ -52,12 +53,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Fire-and-forget notification to supplier
+  // Fire-and-forget notification to supplier (WeChat Work)
   sendSupplyNotification("subscription.new", {
     shop_domain: seller.shop_domain,
     seller_name: seller.shop_name,
     product_title: product.title,
   }).catch(() => {});
+
+  // In-app notification to supplier
+  notifySupplierNewSubscription(
+    product.user_id,
+    seller.shop_domain,
+    seller.shop_name,
+    product.title
+  ).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
 }
