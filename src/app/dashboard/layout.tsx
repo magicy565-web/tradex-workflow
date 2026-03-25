@@ -23,6 +23,10 @@ import {
   Users,
   BarChart3,
   Bell,
+  RotateCcw,
+  Search,
+  FileText,
+  Inbox,
 } from "lucide-react";
 
 const navSections = [
@@ -52,6 +56,14 @@ const navSections = [
     ],
   },
   {
+    label: "GEO 获客",
+    items: [
+      { href: "/dashboard/geo", icon: Search, label: "GEO 概览", dot: "green" },
+      { href: "/dashboard/geo/pages", icon: FileText, label: "页面管理" },
+      { href: "/dashboard/geo/inquiries", icon: Inbox, label: "GEO 询盘" },
+    ],
+  },
+  {
     label: "工具",
     items: [
       { href: "/dashboard/workflow", icon: Workflow, label: "工作流", dot: "green" },
@@ -65,8 +77,10 @@ const navSections = [
       { href: "/dashboard/supply", icon: Package, label: "供应链概览", dot: "green" },
       { href: "/dashboard/supply/products", icon: Package, label: "产品管理" },
       { href: "/dashboard/supply/orders", icon: ShoppingCart, label: "订单管理" },
+      { href: "/dashboard/supply/returns", icon: RotateCcw, label: "退货售后" },
       { href: "/dashboard/supply/sellers", icon: Users, label: "卖家管理" },
       { href: "/dashboard/supply/analytics", icon: BarChart3, label: "数据分析" },
+      { href: "/dashboard/supply/settings", icon: Settings, label: "供应链设置" },
       { href: "/dashboard/supply/notifications", icon: Bell, label: "通知中心" },
     ],
   },
@@ -91,8 +105,13 @@ const pageTitles: Record<string, string> = {
   "/dashboard/supply/products": "供应链产品",
   "/dashboard/supply/orders": "供应链订单",
   "/dashboard/supply/sellers": "卖家管理",
+  "/dashboard/supply/returns": "退货售后",
   "/dashboard/supply/analytics": "数据分析",
+  "/dashboard/supply/settings": "供应链设置",
   "/dashboard/supply/notifications": "通知中心",
+  "/dashboard/geo": "GEO 概览",
+  "/dashboard/geo/pages": "页面管理",
+  "/dashboard/geo/inquiries": "GEO 询盘",
   "/dashboard/settings": "系统设置",
 };
 

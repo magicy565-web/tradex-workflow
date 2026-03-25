@@ -1,0 +1,39 @@
+# TradeX Supply Chain Platform — robots.txt
+
+User-agent: *
+Allow: /s/
+Disallow: /api/
+Disallow: /dashboard/
+
+# AI Crawlers — explicitly allowed on public GEO pages
+User-agent: GPTBot
+Allow: /s/
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: ChatGPT-User
+Allow: /s/
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: PerplexityBot
+Allow: /s/
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: Google-Extended
+Allow: /s/
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: Applebot-Extended
+Allow: /s/
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /dashboard/
+
+Sitemap: https://tradex.com/sitemap.xml

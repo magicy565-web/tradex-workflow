@@ -1,0 +1,14 @@
+# TradeX Supply Chain Platform
+> Factory-direct product sourcing for Shopify sellers and global buyers.
+
+## Products
+- /s/p/{slug}: Individual product pages with specifications, pricing, certifications, and FAQ
+
+## Factories
+- /s/f/{slug}: Verified factory profiles with capabilities, certifications, and trust scores
+
+## API
+- /api/public/inquiry: Submit sourcing inquiries (POST, JSON)
+
+## About
+TradeX connects verified Chinese manufacturers with overseas Shopify sellers through a semi-managed B2B supply chain. All factories are verified with trust scores based on actual delivery performance.

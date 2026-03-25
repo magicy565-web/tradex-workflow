@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/geo/stats/aggregate",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
