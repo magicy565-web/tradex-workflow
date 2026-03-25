@@ -92,6 +92,20 @@ const TEMPLATES: Record<string, (data: Record<string, unknown>) => NotificationP
       `建议及时补货`,
     ].join("\n"),
   }),
+
+  "return.requested": (data) => ({
+    event: "return.requested",
+    title: "新的退货/退款请求",
+    message: [
+      `来自 **${data.seller_name}** 的退货请求`,
+      `退货单号: ${data.return_number}`,
+      `产品: ${data.product_title}`,
+      `退款金额: $${data.refund_amount}`,
+      "",
+      "请尽快处理退货请求",
+      "[点击处理退货](/dashboard/supply/returns?status=requested)",
+    ].join("\n"),
+  }),
 };
 
 /**
@@ -123,4 +137,42 @@ export async function sendSupplyNotification(
   }
 
   return sendWeComNotification(url, payload);
+}
+
+/**
+ * Notify supplier about a new return request via WeChat Work.
+ */
+export async function notifyReturnRequested(
+  supplierId: string,
+  returnNumber: string,
+  sellerName: string,
+  productTitle: string,
+  amount: number
+): Promise<boolean> {
+  return sendSupplyNotification("return.requested", {
+    return_number: returnNumber,
+    seller_name: sellerName,
+    product_title: productTitle,
+    refund_amount: amount.toFixed(2),
+  });
+}
+
+/**
+ * Notify supplier about a new order via WeChat Work.
+ */
+export async function notifyNewOrder(
+  supplierId: string,
+  orderNumber: string,
+  sellerName: string,
+  productTitle: string,
+  quantity: number,
+  totalCost: number
+): Promise<boolean> {
+  return sendSupplyNotification("order.new", {
+    order_number: orderNumber,
+    seller_name: sellerName,
+    product_title: productTitle,
+    quantity,
+    total_cost: totalCost.toFixed(2),
+  });
 }

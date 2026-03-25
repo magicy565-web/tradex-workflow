@@ -81,5 +81,61 @@ export async function PUT(
     seller_id: order.seller_id,
   }).catch(() => {});
 
+  // Push fulfillment to factory system → Shopify Fulfillment API
+  if (data.shopify_order_id) {
+    const { data: seller } = await supabase
+      .from("shopify_sellers")
+      .select("shop_domain")
+      .eq("id", order.seller_id)
+      .single();
+
+    if (seller?.shop_domain) {
+      pushFulfillmentToFactorySystem({
+        shop_domain: seller.shop_domain,
+        shopify_order_id: data.shopify_order_id,
+        tracking_number: body.tracking_number,
+        tracking_company: body.tracking_company || null,
+        tracking_url: body.tracking_url || null,
+        order_number: data.order_number,
+      }).catch(() => {});
+    }
+  }
+
   return NextResponse.json(data);
+}
+
+/**
+ * Fire-and-forget: push fulfillment data to factory system
+ * so it can write to Shopify Fulfillment API.
+ */
+async function pushFulfillmentToFactorySystem(payload: {
+  shop_domain: string;
+  shopify_order_id: number;
+  tracking_number: string;
+  tracking_company: string | null;
+  tracking_url: string | null;
+  order_number: string;
+}): Promise<void> {
+  const bridgeUrl = process.env.FACTORY_SYSTEM_URL;
+  const bridgeSecret = process.env.BRIDGE_API_SECRET;
+  if (!bridgeUrl || !bridgeSecret) return;
+
+  const { createHmac } = await import("crypto");
+  const jsonBody = JSON.stringify(payload);
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const signature = createHmac("sha256", bridgeSecret)
+    .update(jsonBody + timestamp)
+    .digest("hex");
+
+  await fetch(`${bridgeUrl}/api/sci/bridge/fulfillment-callback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Bridge-Source": "tradex",
+      "X-Bridge-Signature": signature,
+      "X-Bridge-Timestamp": timestamp,
+    },
+    body: jsonBody,
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => {});
 }

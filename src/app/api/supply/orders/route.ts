@@ -31,13 +31,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Product not found or not active" }, { status: 404 });
   }
 
+  // Fetch seller's commission rate
+  const { data: sellerDetails } = await adminClient
+    .from("shopify_sellers")
+    .select("commission_rate")
+    .eq("id", seller.id)
+    .single();
+
+  const commissionRate = sellerDetails?.commission_rate || 0.05;
+
   // Generate order number
   const { data: orderNumber } = await adminClient.rpc("generate_order_number");
 
-  const unitCost = product.supply_price;
   const quantity = body.quantity;
+
+  // Check for tiered pricing
+  const { data: priceTiers } = await adminClient
+    .from("supply_price_tiers")
+    .select("min_quantity, max_quantity, unit_price")
+    .eq("product_id", body.product_id)
+    .order("min_quantity", { ascending: true });
+
+  let unitCost = product.supply_price;
+  if (priceTiers && priceTiers.length > 0) {
+    for (const tier of priceTiers) {
+      if (
+        quantity >= tier.min_quantity &&
+        (tier.max_quantity == null || quantity <= tier.max_quantity)
+      ) {
+        unitCost = tier.unit_price;
+        break;
+      }
+    }
+  }
+
   const totalCost = unitCost * quantity;
-  const commission = totalCost * 0.05; // 5% platform commission
+  const commission = totalCost * commissionRate;
 
   // Find subscription if exists
   const { data: subscription } = await adminClient

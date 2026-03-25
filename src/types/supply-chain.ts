@@ -110,6 +110,49 @@ export interface SupplyStats {
   total_revenue: number;
 }
 
+export interface SupplyReturn {
+  id: string;
+  return_number: string;
+  order_id: string;
+  supplier_id: string;
+  seller_id: string;
+  product_id: string;
+  type: "refund_only" | "return_refund" | "exchange";
+  reason: string;
+  description?: string;
+  evidence_images?: string[];
+  quantity: number;
+  refund_amount: number;
+  status:
+    | "requested"
+    | "approved"
+    | "rejected"
+    | "shipped_back"
+    | "received"
+    | "refunded"
+    | "cancelled";
+  reject_reason?: string;
+  notes?: string;
+  refunded_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  seller?: ShopifySeller;
+  product?: SupplyProduct;
+  order?: SupplyOrder;
+}
+
+// Valid return status transitions
+export const RETURN_STATUS_TRANSITIONS: Record<string, string[]> = {
+  requested: ["approved", "rejected"],
+  approved: ["shipped_back", "refunded"], // shipped_back for return_refund/exchange, refunded for refund_only
+  shipped_back: ["received"],
+  received: ["refunded"],
+  rejected: [],
+  refunded: [],
+  cancelled: [],
+};
+
 // Valid order status transitions
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
@@ -119,3 +162,40 @@ export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   delivered: [],
   cancelled: [],
 };
+
+// ---- Bridge Types (Factory System ↔ TradeX) ----
+
+export interface FactorySupplierLink {
+  id: string;
+  factory_id: string;
+  factory_short_id?: string;
+  user_id: string;
+  factory_name?: string;
+  factory_region?: string;
+  trust_score?: number;
+  trust_dimensions?: {
+    identity_score?: number;
+    completeness_score?: number;
+    compliance_score?: number;
+    responsiveness_score?: number;
+    activity_score?: number;
+    fulfillment_score?: number;
+    trade_signal_score?: number;
+  };
+  sync_status: "linked" | "syncing" | "synced" | "error";
+  last_synced_at?: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BridgeSyncLog {
+  id: string;
+  direction: "factory_to_tradex" | "tradex_to_factory";
+  entity_type: string;
+  entity_id?: string;
+  action: string;
+  status: "success" | "failed" | "partial";
+  details: Record<string, unknown>;
+  created_at: string;
+}

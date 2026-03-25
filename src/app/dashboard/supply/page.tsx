@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Package, ShoppingCart, Users, DollarSign, ArrowRight,
-  Clock, TrendingUp, AlertCircle, Store, BarChart3,
+  Clock, TrendingUp, AlertCircle, Store, BarChart3, RotateCcw, Settings,
 } from "lucide-react";
 import type { SupplyOrder } from "@/types/supply-chain";
 
@@ -239,6 +239,12 @@ export default function SupplyDashboardPage() {
             </Link>
             <Link href="/dashboard/supply/analytics" className="flex items-center gap-3 rounded-lg p-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
               <BarChart3 className="h-4 w-4 text-violet-500" /> 数据分析
+            </Link>
+            <Link href="/dashboard/supply/returns" className="flex items-center gap-3 rounded-lg p-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
+              <RotateCcw className="h-4 w-4 text-red-500" /> 退货售后
+            </Link>
+            <Link href="/dashboard/supply/settings" className="flex items-center gap-3 rounded-lg p-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
+              <Settings className="h-4 w-4 text-gray-500" /> 供应链设置
             </Link>
           </div>
         </div>
